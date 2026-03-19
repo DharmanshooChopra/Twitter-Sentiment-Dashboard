@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+
+# Ignore massive datasets if they are too big for GitHub (100MB limit)
+Tweets.csv
+Twitter_Analysis.csv
+
+# Ignore huge generated models, or we can choose to upload them
+# For now, let's keep models un-ignored unless they exceed 50-100MB.
+# models/
