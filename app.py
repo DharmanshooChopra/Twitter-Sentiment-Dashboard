@@ -2,7 +2,7 @@ import re
 import pickle
 import datetime
 import requests
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 
 import nltk
 from nltk.corpus import stopwords
@@ -10,7 +10,38 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
 # Start Flask App
+from flask_cors import CORS
+import os
+from pymongo import MongoClient
+from dotenv import load_dotenv
+
 app = Flask(__name__)
+# Enable CORS for all routes securely
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+load_dotenv() # Load variables from .env if present
+print(f"DEBUG MONGO_URI: {os.getenv('MONGO_URI')}")
+
+# MongoDB Configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+
+try:
+    mongo_client = MongoClient(
+        MONGO_URI, 
+        serverSelectionTimeoutMS=5000,
+        tls=True,
+        tlsAllowInvalidCertificates=True
+    )
+    mongo_client.server_info() # Test connection
+    db = mongo_client["tweet_analyzer_db"]
+    history_collection = db["analysis_history"]
+    feature_vault = db["feature_vault"]
+    print("[SUCCESS] Successfully connected to MongoDB Atlas!")
+except Exception as e:
+    print(f"[WARNING] MongoDB disconnected or invalid URI.")
+    print(f"Error Details: {e}")
+    history_collection = None
+    feature_vault = None
 
 # Preload NLP tools globally 
 nltk.download("stopwords", quiet=True)
@@ -38,6 +69,27 @@ try:
 except Exception as e:
     print(f"Warning: Model not found. Error: {e}")
 
+def store_prediction_in_mongo(input_type, input_value, sentiment, confidence, misinfo, batch_tweets=None):
+    if history_collection is None:
+        return
+        
+    doc = {
+        "input_type": input_type,
+        "input_value": input_value,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc),
+        "sentiment": sentiment,
+        "confidence": confidence,
+        "misinformation": misinfo
+    }
+    
+    if batch_tweets:
+        doc["batch_tweets"] = batch_tweets
+        
+    try:
+        history_collection.insert_one(doc)
+    except Exception as e:
+        print(f"Mongo Insert Error: {e}")
+
 def preprocess_text(text: str) -> str:
     if not isinstance(text, str):
         return ""
@@ -49,18 +101,41 @@ def preprocess_text(text: str) -> str:
     cleaned = [lemmatizer.lemmatize(t) for t in tokens if t not in stop_words]
     return " ".join(cleaned)
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+def extract_keywords(text, vectorizer):
+    """PHASE 1: Extract feature weights from TFIDF"""
+    try:
+        feature_names = vectorizer.get_feature_names_out()
+        vector = vectorizer.transform([text])
+        sorted_indices = vector.toarray()[0].argsort()[::-1]
+        top_words = [feature_names[i] for i in sorted_indices[:5] if vector.toarray()[0][i] > 0]
+        return top_words if top_words else ["N/A"]
+    except Exception:
+        return ["N/A"]
+
+import hashlib
+
+# High-Performance Internal Cache (simulating Redis locally)
+cache_store = {}
+CACHE_HITS = 0
+TOTAL_REQUESTS = 0
 
 @app.route("/analyze", methods=["POST"])
 def analyze_sentiment():
+    global CACHE_HITS, TOTAL_REQUESTS
+    TOTAL_REQUESTS += 1
+    
     """Endpoint matching UI's analyzeText() call"""
     data = request.get_json() if request.is_json else request.form
     raw_text = data.get("text", "")
         
     if not raw_text.strip():
         return jsonify({"error": "No text passed"}), 400
+        
+    # Generate MD5 Hash of the string to check against Cache
+    text_hash = hashlib.md5(raw_text.encode()).hexdigest()
+    if text_hash in cache_store:
+        CACHE_HITS += 1
+        return jsonify(cache_store[text_hash]), 200
 
     if "model" not in globals() or "vectorizer" not in globals():
         # FALLBACK: If Windows Defender blocked the ML training, use NLTK VADER. 
@@ -93,6 +168,19 @@ def analyze_sentiment():
             
             confidence = max(model.predict_proba(vectorized_tweet)[0])
             confidence_pct = round(confidence * 100, 2)
+            
+            # --- PHASE 4: FEATURE LOGGING FOR ACTIVE LEARNING ---
+            if "feature_vault" in globals() and feature_vault is not None:
+                try:
+                    feature_vault.insert_one({
+                        "raw_text": raw_text,
+                        "embedding": vectorized_tweet.toarray().flatten().tolist(),
+                        "system_label": label,
+                        "timestamp": datetime.datetime.now(datetime.timezone.utc),
+                        "audited": False
+                    })
+                except Exception:
+                    pass
         except Exception as e:
             return jsonify({"error": str(e)}), 500
         
@@ -109,19 +197,100 @@ def analyze_sentiment():
         if len(app_history) > 30:
             app_history.pop()
         
-    return jsonify({
+        # Calculate Misinformation Risk heuristic
+        if label == "negative" and confidence_pct > 75:
+            mis_risk = "High"
+        elif label == "negative" and confidence_pct <= 75:
+            mis_risk = "Moderate"
+        else:
+            mis_risk = "Low"
+
+        # --- DB STORAGE ---
+        store_prediction_in_mongo(
+            input_type="custom_text",
+            input_value=raw_text,
+            sentiment=label,
+            confidence=confidence_pct,
+            misinfo=mis_risk
+        )
+
+    keywords = extract_keywords(raw_text, vectorizer) if "vectorizer" in globals() else ["N/A"]
+    response_payload = {
         "error": None,
         "sentiment": label,
-        "confidence": confidence_pct
-    }), 200
+        "confidence": confidence_pct,
+        "misinformation": mis_risk,
+        "explanation": {
+            "keywords": keywords,
+            "reason": f"Detected strong signals from words like {', '.join(keywords[:3])}"
+        }
+    }
+    
+    # Store payload into our memory cache
+    cache_store[text_hash] = response_payload
+    
+    return jsonify(response_payload), 200
+
+@app.route("/metrics", methods=["GET"])
+def get_metrics():
+    """Endpoint for Phase 5 system metrics analysis"""
+    cache_hit_ratio = round((CACHE_HITS / TOTAL_REQUESTS) * 100, 2) if TOTAL_REQUESTS > 0 else 0
+    total_db = history_collection.count_documents({}) if history_collection else sum(app_stats.values())
+    
+    return jsonify({
+        "system_health": "operational",
+        "requests_total": TOTAL_REQUESTS,
+        "cache_hit_ratio_pct": cache_hit_ratio,
+        "ml_telemetry": {
+            "total_predictions_stored": total_db
+        }
+    })
 
 @app.route("/stats", methods=["GET"])
 def get_stats():
-    return jsonify(app_stats)
+    if history_collection is None:
+        return jsonify(app_stats)
+        
+    pipeline = [
+        {"$group": {"_id": "$sentiment", "count": {"$sum": 1}}}
+    ]
+    try:
+        results = history_collection.aggregate(pipeline)
+        stats = {"positive": 0, "neutral": 0, "negative": 0}
+        for r in results:
+            label = r["_id"]
+            if label in stats:
+                stats[label] = r["count"]
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify(app_stats)
 
 @app.route("/history", methods=["GET"])
 def get_history():
-    return jsonify(app_history)
+    if history_collection is None:
+        return jsonify(app_history)
+        
+    try:
+        cursor = history_collection.find({}, {"_id": 0}).sort("timestamp", -1).limit(20)
+        formatted_history = []
+        
+        # Map for Line Graph 
+        score_map = {"positive": 1, "neutral": 0, "negative": -1}
+        
+        for doc in cursor:
+            lbl = doc.get("sentiment", "neutral")
+            formatted_history.append({
+                "tweet_text": doc.get("input_value", ""),
+                "sentiment": lbl,
+                "score": score_map.get(lbl, 0),
+                "misinformation": doc.get("misinfo", "Low"),
+                "timestamp": doc.get("timestamp").strftime("%I:%M:%S") if doc.get("timestamp") else "00:00:00"
+            })
+            
+        # Recharts expects left-to-right chronological
+        return jsonify(formatted_history[::-1])
+    except Exception as e:
+        return jsonify(app_history)
 
 def _find_key_in_json(obj, target_key):
     """Recursively search for a key in a complex JSON dictionary."""
@@ -233,14 +402,58 @@ def fetch_tweet():
             # Truncate to the exact count requested
             final_tweets = all_texts[:count]
             
-            return jsonify({
-                "tweets": [{
+            # --- BATCH ML PROCESSING & MongoDB STORAGE ---
+            batch_results = []
+            pos_score, neg_score = 0, 0
+            
+            for txt in final_tweets:
+                lbl = "neutral"
+                conf = 0.0
+                misinfo = "Low"
+                if "model" in globals() and "vectorizer" in globals():
+                    try:
+                        c_text = preprocess_text(txt)
+                        v_text = vectorizer.transform([c_text])
+                        lbl = sentiment_map.get(model.predict(v_text)[0], "unknown")
+                        conf = round(max(model.predict_proba(v_text)[0]) * 100, 2)
+                        
+                        if lbl == "negative" and conf > 75: misinfo = "High"
+                        elif lbl == "negative" and conf <= 75: misinfo = "Moderate"
+                        
+                        if lbl == "positive": pos_score += 1
+                        if lbl == "negative": neg_score += 1
+                    except Exception:
+                        pass
+                        
+                batch_kws = extract_keywords(txt, vectorizer) if "vectorizer" in globals() else ["N/A"]
+                batch_results.append({
                     "text": txt,
                     "author": f"@{username}",
-                    "id": "",
-                    "created_at": "Recent"
-                } for txt in final_tweets]
-            })
+                    "sentiment": lbl,
+                    "confidence": conf,
+                    "misinformation": misinfo,
+                    "explanation": {
+                        "keywords": batch_kws,
+                        "reason": f"Detected strong signals from words like {', '.join(batch_kws[:3])}"
+                    }
+                })
+                
+            # Determine overall sentiment of the batch
+            overall = "neutral"
+            if pos_score > neg_score: overall = "positive"
+            elif neg_score > pos_score: overall = "negative"
+            
+            # Store everything into Mongo!
+            store_prediction_in_mongo(
+                input_type="twitter_username",
+                input_value=username,
+                sentiment=overall,
+                confidence=100.0,
+                misinfo="High" if neg_score > (len(final_tweets)/2) else "Low",
+                batch_tweets=batch_results
+            )
+            
+            return jsonify({"tweets": batch_results})
             
     except Exception as e:
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
