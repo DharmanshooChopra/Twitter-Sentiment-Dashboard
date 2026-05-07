@@ -9,7 +9,9 @@ __pycache__/
 # Ignore massive datasets if they are too big for GitHub (100MB limit)
 Tweets.csv
 Twitter_Analysis.csv
+Misinformation_Data.csv
 
 # Ignore huge generated models, or we can choose to upload them
 # For now, let's keep models un-ignored unless they exceed 50-100MB.
 # models/
+models/rf_model.pkl

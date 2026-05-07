@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Send, Loader2, AlertCircle, CheckCircle, BarChart2, ShieldAlert } from 'lucide-react';
+import { Send, Loader2, AlertCircle, CheckCircle, BarChart2, ShieldAlert, Layers, Cpu, Clock, Zap, Search } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import FactCheckEvidence from './FactCheckEvidence';
 import './App.css';
 
 function App() {
@@ -10,22 +11,21 @@ function App() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   
-  // Phase 5 & 6 State
   const [appMode, setAppMode] = useState('custom');
   const [statsData, setStatsData] = useState([]);
   const [historyData, setHistoryData] = useState([]);
+  const [loadedModels, setLoadedModels] = useState({});
 
-  // Force absolute mapping to avoid CORS protocol mismatch
   const apiUrl = 'http://127.0.0.1:5000';
 
   const fetchTelemetry = async () => {
     try {
-      const [statsRes, histRes] = await Promise.all([
+      const [statsRes, histRes, modelsRes] = await Promise.all([
         axios.get(`${apiUrl}/stats`),
-        axios.get(`${apiUrl}/history`)
+        axios.get(`${apiUrl}/history`),
+        axios.get(`${apiUrl}/models`).catch(() => ({ data: {} }))
       ]);
       
-      // Parse stats for Recharts Pie
       const rawStats = statsRes.data;
       const parsedStats = [
         { name: 'Positive', value: rawStats.positive || 0, color: '#10b981' },
@@ -35,21 +35,22 @@ function App() {
       
       setStatsData(parsedStats);
       setHistoryData(histRes.data);
+      setLoadedModels(modelsRes.data || {});
     } catch (err) {
       console.error("Failed to load telemetry data: ", err);
     }
   };
 
-  // Poll database on load and refresh
   useEffect(() => {
     fetchTelemetry();
   }, []);
 
   const [loadingText, setLoadingText] = useState('System idle.');
 
-  const handleAnalyze = async (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleAnalyze = async (e, forceText = null) => {
+    if (e) e.preventDefault();
+    const textToProcess = forceText !== null ? forceText : inputText;
+    if (!textToProcess.trim()) return;
     
     setIsLoading(true);
     setLoadingText('Processing input...');
@@ -57,13 +58,13 @@ function App() {
     setResults(null);
     
     try {
-      // Simulate real-time deep parsing sequence
-      setTimeout(() => setLoadingText('Running model architecture...'), 800);
-      setTimeout(() => setLoadingText('Cross-referencing database...'), 1600);
+      setTimeout(() => setLoadingText('Dispatching to 10-model parallel engine...'), 800);
+      setTimeout(() => setLoadingText('Aggregating ensemble consensus...'), 2500);
       
-      if (appMode === 'custom') {
+      if (appMode === 'custom' || forceText !== null) {
+        if (forceText !== null) setAppMode('custom');
         const response = await axios.post(`${apiUrl}/analyze`, { 
-            text: inputText 
+            text: textToProcess 
         }, {
             headers: { 'Content-Type': 'application/json' }
         });
@@ -95,7 +96,6 @@ function App() {
       if (err.response && err.response.data && err.response.data.error) {
         setError(err.response.data.error);
       } else {
-        // Natively catch the Network / CORS drop
         setError("Failed to connect to the backend engine. Ensure Flask is running on Port 5000.");
       }
       setLoadingText('System Error.');
@@ -104,7 +104,6 @@ function App() {
     }
   };
 
-  // Phase 2: Alert System Tracking
   const checkAlertState = () => {
     if (!historyData || historyData.length < 3) return null;
     const lastThree = historyData.slice(-3);
@@ -120,10 +119,132 @@ function App() {
   const [theme, setTheme] = useState('cyber-dark');
   const [activeView, setActiveView] = useState('dashboard');
 
+  const sentimentIcon = (label) => {
+    if (label === 'positive') return '🟢';
+    if (label === 'negative') return '🔴';
+    if (label === 'neutral') return '🟡';
+    return '⚪';
+  };
+
+  // ── Resolve model type for badge rendering ─────────────────
+  const getModelType = (key, val) => {
+    // From /models endpoint
+    if (loadedModels[key]?.type) return loadedModels[key].type;
+    // Fallback heuristics from display_name
+    const dn = (val?.display_name || '').toLowerCase();
+    if (dn.includes('lstm') || dn.includes('cnn') || dn.includes('bilstm')) return 'neural';
+    if (dn.includes('bert') || dn.includes('roberta') || dn.includes('distil')) return 'transformer';
+    return 'traditional';
+  };
+
+  const typeBadgeLabel = (type) => {
+    if (type === 'transformer') return 'Transformer';
+    if (type === 'neural') return 'Deep Learning';
+    return 'Classic ML';
+  };
+
+  // ── Model Comparison Table Component ────────────────────────
+  const ModelComparisonTable = ({ modelResults, consensus }) => {
+    if (!modelResults || Object.keys(modelResults).length === 0) return null;
+
+    const entries = Object.entries(modelResults);
+    const modelCount = entries.length;
+
+    return (
+      <div className="model-comparison-wrapper">
+        <div className="comparison-header">
+          <Layers size={18} />
+          <h4>Multi-Model Comparison Matrix</h4>
+          <span className="model-count-badge">{modelCount} Models</span>
+          {consensus && (
+            <span className={`consensus-badge color-${consensus.label}`}>
+              CONSENSUS: {consensus.label?.toUpperCase()} ({consensus.agreement_pct}%)
+            </span>
+          )}
+        </div>
+        <div className="comparison-table-container">
+          <table className="comparison-table" id="model-comparison-table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Category</th>
+                <th>Prediction</th>
+                <th>Confidence</th>
+                <th>Latency</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(([key, val]) => {
+                const mtype = getModelType(key, val);
+                return (
+                <tr key={key} className={`model-row ${val.label === consensus?.label ? 'agrees' : 'disagrees'}`}>
+                  <td className="model-name-cell">
+                    <Cpu size={14} />
+                    <span>{val.display_name || key}</span>
+                  </td>
+                  <td>
+                    <span className={`type-badge ${mtype}`}>
+                      {typeBadgeLabel(mtype)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`prediction-cell color-${val.label}`}>
+                      {sentimentIcon(val.label)} {val.label?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="table-conf-wrapper">
+                      <div className="table-conf-bar">
+                        <div 
+                          className={`table-conf-fill conf-${val.label}`}
+                          style={{ width: `${val.confidence}%` }}
+                        />
+                      </div>
+                      <span className="conf-value">{val.confidence}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="latency-cell">
+                      <Clock size={12} />
+                      {val.latency_ms != null ? `${val.latency_ms}ms` : '—'}
+                    </span>
+                  </td>
+                  <td>
+                    {val.error ? (
+                      <span className="status-error">⛔ Error</span>
+                    ) : val.label === consensus?.label ? (
+                      <span className="status-agree">✓ Agrees</span>
+                    ) : (
+                      <span className="status-disagree">✗ Dissent</span>
+                    )}
+                  </td>
+                </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Total latency footer */}
+        {consensus && (
+          <div className="comparison-footer">
+            <span><Zap size={14} /> Parallel wall-clock time: <strong>{entries.reduce((max, [, v]) => Math.max(max, v.latency_ms || 0), 0)}ms</strong></span>
+            <span>{consensus.total_models || modelCount} models evaluated</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Category counts for sidebar ─────────────────────────────
+  const mlCount = Object.values(loadedModels).filter(m => m.type === 'traditional').length;
+  const dlCount = Object.values(loadedModels).filter(m => m.type === 'neural').length;
+  const tfCount = Object.values(loadedModels).filter(m => m.type === 'transformer').length;
+
   return (
     <div className={`system-dashboard ${theme}`} data-theme={theme}>
       
-      {/* LEFT: System Controls (Matched to UI Map) */}
+      {/* LEFT: System Controls */}
       <aside className="panel-left">
         <h1 className="logo" style={{fontSize: '1.8rem'}}>Sentiment <span>Analysis</span></h1>
         
@@ -168,10 +289,23 @@ function App() {
           >
             Twitter Extractor
           </button>
+
+          {/* Active Models Badge */}
+          <div className="models-status-pill">
+            <Cpu size={14} />
+            <span>{Object.keys(loadedModels).length} Model(s) Active</span>
+          </div>
+          {Object.keys(loadedModels).length > 0 && (
+            <div className="models-breakdown">
+              {mlCount > 0 && <span className="break-tag ml">{mlCount} ML</span>}
+              {dlCount > 0 && <span className="break-tag dl">{dlCount} DL</span>}
+              {tfCount > 0 && <span className="break-tag tf">{tfCount} TF</span>}
+            </div>
+          )}
         </div>
       </aside>
 
-      {/* CENTER: AI Agent Dashboard Interface */}
+      {/* CENTER: Dashboard */}
       <main className="panel-center">
         {activeAlert && (
           <div className="smart-alert-banner">
@@ -182,7 +316,6 @@ function App() {
         {activeView === 'dashboard' && (
           <>
           <div className="center-dashboard-feed">
-             {/* Top Insight Row */}
              <div className="dashboard-grid-row">
                 <div className="msg-bubble system-status-card">
                    <h4 style={{margin: '0 0 5px 0', color: 'var(--brand-purple)'}}>🔌 Core Telemetry</h4>
@@ -207,7 +340,7 @@ function App() {
              {results && (
               <div className="live-result-panel" style={{marginTop: '1rem'}}>
                 <div className="msg-bubble result-glass-card large-hero-card">
-                  <h3 style={{marginTop: 0}}>{results.isBatch ? "BATCH STREAM ANALYSIS" : "LIVE ANALYSIS RESULT"}</h3>
+                  <h3 style={{marginTop: 0}}>{results.isBatch ? "BATCH STREAM ANALYSIS" : "10-MODEL PARALLEL ANALYSIS"}</h3>
                   
                   {results.isBatch ? (
                     <div className="tweet-batch-list">
@@ -237,12 +370,20 @@ function App() {
                     </div>
                   ) : (
                     <>
+                    {/* Consensus Hero */}
                     <div className="massive-metrics-display">
                        <div style={{textAlign: 'center', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px'}}>
-                          <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase'}}>Detected Shift</div>
+                          <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase'}}>Ensemble Consensus</div>
                           <div style={{fontSize: '2rem', fontWeight: '800'}} className={`color-${results.sentiment}`}>{results.sentiment.toUpperCase()}</div>
+                          {results.consensus && (
+                            <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px'}}>
+                              {results.consensus.agreement_pct}% model agreement • {results.confidence}% weighted confidence
+                              {results.total_latency_ms != null && <> • <Zap size={12} style={{verticalAlign: 'middle'}} /> {results.total_latency_ms}ms total</>}
+                            </div>
+                          )}
                        </div>
                     </div>
+
                     <div className="metrics-row" style={{marginTop: '1rem'}}>
                       <div className="metric">
                         <ShieldAlert size={16} /> Risk Level: <strong className={`color-${results.misinformation.toLowerCase()}`}>{results.misinformation}</strong>
@@ -252,6 +393,24 @@ function App() {
                         <div className="conf-bar"><div className="conf-fill" style={{width: `${results.confidence}%`}}></div></div>
                       </div>
                     </div>
+
+                    {results.complex_anomaly && (
+                      <div className="msg-bubble error-card anomaly-warning" style={{borderColor: '#f59e0b', color: '#f59e0b', marginTop: '1rem', backgroundColor: 'rgba(245, 158, 11, 0.1)'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                          <AlertCircle size={16} color="#f59e0b" /> 
+                          <strong>Complex Anomaly Detected:</strong> The sentiment ensemble and the XGBoost Misinformation AI disagree. Manual review recommended.
+                        </div>
+                      </div>
+                    )}
+
+                    <FactCheckEvidence verificationData={results.gemini_verification} />
+
+                    {/* Multi-Model Comparison Table */}
+                    <ModelComparisonTable 
+                      modelResults={results.model_results} 
+                      consensus={results.consensus} 
+                    />
+
                     {results.explanation && results.explanation.reason && (
                         <div className="explain-panel intelligent-assistant">
                            <h4>🧠 Model Reasoning</h4>
@@ -276,10 +435,10 @@ function App() {
                value={inputText}
                onChange={(e) => setInputText(e.target.value)}
                onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAnalyze(e); } }}
-               placeholder={appMode === 'custom' ? "Deploy text payload for real-time analysis..." : "Target @username for stream extraction..."} 
+               placeholder={appMode === 'custom' ? "Deploy text payload for 10-model parallel analysis..." : "Target @username for stream extraction..."} 
                disabled={isLoading}
-               rows={6}
-               style={{width: '100%', background: 'transparent', border: 'none', color: 'inherit', resize: 'vertical', outline: 'none', fontFamily: 'inherit'}}
+               rows={3}
+               style={{width: '100%', background: 'transparent', border: 'none', color: 'inherit', resize: 'none', outline: 'none', fontFamily: 'inherit'}}
              />
              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem'}}>
                <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{inputText.length} characters | <kbd>Enter</kbd> to analyze</span>
@@ -293,30 +452,32 @@ function App() {
 
         {activeView === 'analytics' && (
           <div className="center-dashboard-feed" style={{padding: '1rem'}}>
-             <h2 style={{color: 'var(--brand-purple)', marginBottom: '2rem'}}>High-Resolution Telemetry</h2>
-             <div className="msg-bubble system-status-card" style={{height: '350px', marginBottom: '2rem'}}>
-                <h3 style={{marginBottom: '1rem', textAlign: 'center'}}>Global Sentiment Distribution</h3>
-                <ResponsiveContainer width="100%" height="80%">
-                  <PieChart>
-                    <Pie data={statsData} cx="50%" cy="50%" innerRadius={80} outerRadius={120} paddingAngle={5} dataKey="value" label>
-                      {statsData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))}
-                    </Pie>
-                    <Tooltip contentStyle={{background: '#0f172a', border: '1px solid #334155'}}/>
-                    <Legend verticalAlign="bottom" height={24} iconType="circle" />
-                  </PieChart>
-                </ResponsiveContainer>
-             </div>
-             <div className="msg-bubble system-insight-card" style={{height: '350px'}}>
-                <h3 style={{marginBottom: '1rem', textAlign: 'center'}}>Macro Trend Graph Log</h3>
-                <ResponsiveContainer width="100%" height="80%">
-                  <LineChart data={historyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)"/>
-                    <XAxis dataKey="timestamp" stroke="#94a3b8" />
-                    <YAxis domain={[-1, 1]} ticks={[-1, 0, 1]} stroke="#94a3b8" />
-                    <Tooltip contentStyle={{background: '#0f172a', border: '1px solid #334155'}}/>
-                    <Line type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={4} dot={{ fill: '#8b5cf6', strokeWidth: 3 }} animationDuration={1000} />
-                  </LineChart>
-                </ResponsiveContainer>
+             <h2 style={{color: 'var(--brand-purple)', marginBottom: '1.5rem'}}>High-Resolution Telemetry</h2>
+             <div className="analytics-grid">
+               <div className="msg-bubble system-status-card analytics-chart-card">
+                  <h3 style={{marginBottom: '1rem', textAlign: 'center'}}>Global Sentiment Distribution</h3>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie data={statsData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label>
+                        {statsData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))}
+                      </Pie>
+                      <Tooltip contentStyle={{background: '#0f172a', border: '1px solid #334155'}}/>
+                      <Legend verticalAlign="bottom" height={24} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+               </div>
+               <div className="msg-bubble system-insight-card analytics-chart-card">
+                  <h3 style={{marginBottom: '1rem', textAlign: 'center'}}>Macro Trend Graph Log</h3>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={historyData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)"/>
+                      <XAxis dataKey="timestamp" stroke="#94a3b8" fontSize={11} />
+                      <YAxis domain={[-1, 1]} ticks={[-1, 0, 1]} stroke="#94a3b8" fontSize={11} />
+                      <Tooltip contentStyle={{background: '#0f172a', border: '1px solid #334155'}}/>
+                      <Line type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: '#8b5cf6', strokeWidth: 2 }} animationDuration={1000} />
+                    </LineChart>
+                  </ResponsiveContainer>
+               </div>
              </div>
           </div>
         )}
@@ -329,11 +490,25 @@ function App() {
                {historyData.map((item, idx) => (
                  <div className="msg-bubble result-glass-card hover-lift" key={idx} style={{padding: '1rem'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
-                      <span className={`metric-pill color-${item.sentiment}`}>{item.sentiment.toUpperCase()}</span>
+                      <span className={`metric-pill color-${item.sentiment || 'neutral'}`}>{(item.sentiment || 'neutral').toUpperCase()}</span>
                       <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{item.timestamp}</span>
                     </div>
                     <p style={{fontSize: '0.9rem', color: 'var(--text-primary)', margin: '0 0 0.5rem 0'}}>"{item.tweet_text}"</p>
-                    {item.misinformation === 'High' && <span className="metric-pill color-high">⚠️ High Misinfo</span>}
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px'}}>
+                      <div>
+                        {item.misinformation === 'High' && <span className="metric-pill color-high">⚠️ High Misinfo</span>}
+                      </div>
+                      <button 
+                        className="btn-primary glow-btn"
+                        style={{padding: '4px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center'}}
+                        onClick={() => {
+                          setActiveView('dashboard');
+                          handleAnalyze(null, item.tweet_text);
+                        }}
+                      >
+                       <Search size={12} style={{marginRight: '6px'}}/> Re-Verify
+                      </button>
+                    </div>
                  </div>
                ))}
              </div>
@@ -349,6 +524,24 @@ function App() {
                <button onClick={() => setTheme('cyber-dark')} className="glow-btn" style={{marginRight: '1rem', background: theme === 'cyber-dark' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#334155'}}>Dark Mode Core</button>
                <button onClick={() => setTheme('light-mode')} className="glow-btn" style={{background: theme === 'light-mode' ? '#10b981' : '#334155'}}>Light Analytics Render</button>
                
+               <h3 style={{marginTop: '3rem', marginBottom: '1rem'}}>Active Model Registry ({Object.keys(loadedModels).length}/10)</h3>
+               <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem'}}>Models currently loaded in the inference engine.</p>
+               <div className="settings-model-grid">
+                 {Object.entries(loadedModels).map(([key, info]) => (
+                   <div key={key} className="settings-model-card">
+                     <Cpu size={16} />
+                     <div>
+                       <strong>{info.display_name}</strong>
+                       <span className={`type-badge ${info.type}`}>{typeBadgeLabel(info.type)}</span>
+                     </div>
+                     <span className="device-tag">{info.device || 'cpu'}</span>
+                   </div>
+                 ))}
+                 {Object.keys(loadedModels).length === 0 && (
+                   <p className="pulse" style={{color: 'var(--text-muted)'}}>No models loaded — check backend.</p>
+                 )}
+               </div>
+
                <h3 style={{marginTop: '3rem', marginBottom: '1rem', color: '#ef4444'}}>Database Overrides</h3>
                <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem'}}>Clears the active session states and prepares system for a fresh payload injection loop.</p>
                <button onClick={() => { setInputText(''); setResults(null); setError(null); setLoadingText('System reset.'); }} className="glow-btn" style={{background: '#ef4444', boxShadow: 'none'}}>Soft Reset State</button>
@@ -366,15 +559,7 @@ function App() {
               {statsData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={statsData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={70}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
+                    <Pie data={statsData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value">
                       {statsData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
