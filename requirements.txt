@@ -22,3 +22,6 @@ xgboost>=2.0
 # Transformer Models (BERT / RoBERTa) + Neural Nets (LSTM / CNN)
 transformers>=4.40
 torch>=2.2
+
+# LLM Integrations
+google-genai
