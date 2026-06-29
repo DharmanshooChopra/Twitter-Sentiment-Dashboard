@@ -11,7 +11,7 @@ import {
   BarChart3, ShieldAlert, Brain, TrendingUp, Zap, MessageCircle,
 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
 const SUGGESTED_PROMPTS = [
   { icon: BarChart3,   label: 'Analyze sentiment trends',         prompt: 'Analyze the current sentiment trends from the live dashboard data.' },

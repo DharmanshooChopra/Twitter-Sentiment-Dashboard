@@ -18,3 +18,8 @@ numpy>=2.4.6
 
 # LLM Integrations
 google-genai>=2.9.0
+
+# Production Server & ML Support
+gunicorn>=23.0.0
+xgboost>=3.3.0
+

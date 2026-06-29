@@ -7,7 +7,7 @@ import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Loader2 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 const TOOLTIP_STYLE = { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, fontSize: '0.75rem', color: '#e2e8f0' };
 const TREND_COLOR = { improving: '#10b981', declining: '#ef4444', stable: '#f59e0b', neutral: '#64748b' };
 

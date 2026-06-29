@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Network, Cpu, Zap, Activity, Eye, Search, Maximize2 } from 'lucide-react';
 import axios from 'axios';
 
-const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
 export default function AIBrainTelemetry() {
   const [activeTab, setActiveTab] = useState('network'); // network, heatmap, queue

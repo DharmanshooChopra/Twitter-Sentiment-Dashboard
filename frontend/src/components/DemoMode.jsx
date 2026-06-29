@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Play, Square, Zap, Shield, Radio, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
 const SENTIMENT_CFG = {
   positive: { color: '#10b981', bg: 'rgba(16,185,129,0.12)', label: '▲ POSITIVE' },
