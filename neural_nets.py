@@ -39,9 +39,10 @@ NUM_CLASSES = 3
 SENTIMENT_MAP = {0: "negative", 1: "neutral", 2: "positive"}
 
 # ── Paths ──
-TOKENIZER_PATH = "models/neural_tokenizer.pkl"
-LSTM_WEIGHTS_PATH = "models/lstm_model.pt"
-CNN_WEIGHTS_PATH = "models/cnn_model.pt"
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TOKENIZER_PATH = os.path.join(_BASE_DIR, "models", "neural_tokenizer.pkl")
+LSTM_WEIGHTS_PATH = os.path.join(_BASE_DIR, "models", "lstm_model.pt")
+CNN_WEIGHTS_PATH = os.path.join(_BASE_DIR, "models", "cnn_model.pt")
 
 
 def _clean_text(text: str) -> str:

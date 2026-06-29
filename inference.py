@@ -11,8 +11,8 @@ import numpy as np
 
 SENTIMENT_MAP = {0: "negative", 1: "neutral", 2: "positive"}
 
-# Timeout per model (seconds) — prevents any single model from blocking
-MODEL_TIMEOUT = 30
+# Timeout per model (seconds) — increased to handle cold-start transformer warmup
+MODEL_TIMEOUT = 60
 
 
 def _predict_traditional(text: str, model, vectorizer):

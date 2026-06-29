@@ -1,60 +1,164 @@
 import React from 'react';
-import { Search, ExternalLink } from 'lucide-react';
+import { Search, ExternalLink, ShieldCheck, AlertCircle, FileText, Globe, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const statusConfig = {
+    'Verified': { color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', icon: ShieldCheck },
+    'Partially Verified': { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', icon: AlertCircle },
+    'Unverified': { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', border: 'rgba(148,163,184,0.3)', icon: Search },
+    'Misleading': { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', icon: AlertCircle },
+    'High Risk': { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.4)', icon: AlertCircle },
+    'Verification Temporarily Unavailable': { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)', icon: Clock },
+    'Verification Unavailable': { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.25)', icon: AlertCircle },
+};
+
+const confidenceColors = {
+    'High': '#10b981',
+    'Medium': '#f59e0b',
+    'Low': '#ef4444',
+};
 
 const FactCheckEvidence = ({ verificationData }) => {
     if (!verificationData) return null;
 
-    const { verdict, source_url } = verificationData;
+    const { status, summary, reasoning, references, quota_exhausted } = verificationData;
+    const cfg = statusConfig[status] || statusConfig['Unverified'];
+    const StatusIcon = cfg.icon;
 
-    let mainVerdict = verdict || '';
-    let findings = [];
-    
-    // Split the Gemini response into the core verdict + structured findings
-    if (mainVerdict.includes('FINDING:')) {
-        const parts = mainVerdict.split(/FINDING:/g);
-        mainVerdict = parts[0].trim();
-        findings = parts.slice(1).map(p => p.trim()).filter(p => p.length > 0);
-    }
+    const isUnavailable = quota_exhausted ||
+        status === 'Verification Temporarily Unavailable' ||
+        status === 'Verification Unavailable';
 
     return (
-        <div className="telemetry-card highlight-glow" style={{ marginTop: '1rem', borderLeft: '4px solid #3b82f6' }}>
-            <div className="card-header" style={{ marginBottom: '10px' }}>
-                <Search size={18} style={{ color: '#3b82f6', marginRight: '8px' }} />
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                    <span className="badge-glow" style={{ fontSize: '0.85rem' }}>🔍 Verified Evidence</span>
-                </h3>
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+                marginTop: '1.25rem',
+                background: 'rgba(15, 23, 42, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderLeft: `4px solid ${cfg.color}`,
+                borderRadius: '12px',
+                padding: '1.25rem',
+                backdropFilter: 'blur(10px)',
+            }}
+        >
+            {/* Header row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Search size={16} color="#8b5cf6" />
+                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                        Gemini Re-Verification Engine
+                    </span>
+                </div>
+                <div style={{
+                    padding: '2px 10px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800,
+                    backgroundColor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+                    display: 'flex', alignItems: 'center', gap: '5px'
+                }}>
+                    <StatusIcon size={12} />
+                    {status?.toUpperCase()}
+                </div>
             </div>
-            
-            <div className="verdict-container" style={{ padding: '10px', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '6px', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                <p style={{ margin: 0, marginBottom: findings.length > 0 ? '8px' : '12px' }}>
-                    <strong>Gemini AI Fact-Check:</strong> {mainVerdict}
+
+            {/* Quota warning banner */}
+            {isUnavailable && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 12px', marginBottom: '1rem',
+                    background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)',
+                    borderRadius: '8px', fontSize: '0.75rem', color: '#f59e0b'
+                }}>
+                    <Clock size={13} />
+                    <span>API quota cooldown active. Results will resume automatically on next request.</span>
+                </div>
+            )}
+
+            {/* Summary section */}
+            <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FileText size={12} color="#8b5cf6" /> RE-VERIFICATION SUMMARY
+                </div>
+                <p style={{ margin: 0, color: '#e2e8f0', fontSize: '0.88rem', lineHeight: 1.6, opacity: 0.9 }}>
+                    {summary}
                 </p>
-                
-                {findings.length > 0 && (
-                    <ul style={{ marginTop: '0', paddingLeft: '20px', marginBottom: '16px', color: 'var(--text-primary)' }}>
-                        {findings.map((f, i) => (
-                            <li key={i} style={{ marginBottom: '6px' }}>{f.replace(/^[\*\-\s]+/, '')}</li>
-                        ))}
-                    </ul>
-                )}
-                
-                {source_url && (
-                    <a 
-                        href={source_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="btn-primary" 
-                        style={{ display: 'inline-flex', padding: '6px 14px', textDecoration: 'none', backgroundColor: '#3b82f6', fontSize: '0.9rem' }}
-                    >
-                        Read Full Article <ExternalLink size={14} style={{ marginLeft: '6px' }} />
-                    </a>
-                )}
-                {!source_url && (
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#9ca3af' }}>No source URL provided by grounding metadata.</p>
+                {reasoning && reasoning !== 'N/A' && !isUnavailable && (
+                    <p style={{ marginTop: '8px', marginBottom: 0, color: '#64748b', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                        Reasoning: {reasoning}
+                    </p>
                 )}
             </div>
-        </div>
+
+            {/* Supporting Sources */}
+            <div>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Globe size={12} color="#8b5cf6" /> SUPPORTING SOURCES
+                </div>
+
+                {(!references || references.length === 0) ? (
+                    <div style={{
+                        padding: '10px 12px', background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px',
+                        fontSize: '0.78rem', color: '#475569', fontStyle: 'italic'
+                    }}>
+                        No verified external references available.
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {references.map((ref, idx) => (
+                            <a
+                                key={idx}
+                                href={ref.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                    padding: '8px 12px', background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px',
+                                    textDecoration: 'none', transition: 'all 0.2s'
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                            >
+                                <div style={{
+                                    minWidth: '24px', height: '24px', borderRadius: '50%',
+                                    backgroundColor: 'rgba(139,92,246,0.1)', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    <Globe size={12} color="#8b5cf6" />
+                                </div>
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                    <div style={{ color: '#f1f5f9', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {ref.title}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                        <span style={{ color: '#64748b', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            {ref.source}
+                                        </span>
+                                        {ref.confidence && (
+                                            <span style={{
+                                                fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px',
+                                                borderRadius: '4px',
+                                                color: confidenceColors[ref.confidence] || '#94a3b8',
+                                                background: `${confidenceColors[ref.confidence] || '#94a3b8'}18`,
+                                                border: `1px solid ${confidenceColors[ref.confidence] || '#94a3b8'}30`,
+                                                textTransform: 'uppercase', letterSpacing: '0.04em'
+                                            }}>
+                                                {ref.confidence}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <ExternalLink size={14} color="#475569" />
+                            </a>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </motion.div>
     );
 };
 
 export default FactCheckEvidence;
+
+

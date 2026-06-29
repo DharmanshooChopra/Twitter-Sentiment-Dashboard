@@ -1,4 +1,4 @@
-# === NeuroPulse Multi-Model Sentiment Engine (Vercel Build) ===
+# === NeuroPulse Multi-Model Sentiment Engine ===
 # Core Web Framework
 flask>=3.1.3
 flask-cors>=6.0.5
@@ -15,6 +15,13 @@ nltk>=3.9.4
 scikit-learn>=1.9.0
 pandas>=3.0.3
 numpy>=2.4.6
+
+# Gradient Boosting
+xgboost>=3.3.0
+
+# Transformer Models (BERT / RoBERTa) + Neural Nets (LSTM / CNN)
+transformers>=5.12.1
+torch>=2.12.1
 
 # LLM Integrations
 google-genai>=2.9.0

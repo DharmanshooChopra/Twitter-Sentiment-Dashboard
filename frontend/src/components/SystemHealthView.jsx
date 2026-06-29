@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Activity, Database, Cpu, Shield, Zap, Wifi, RefreshCw, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-const API = 'http://127.0.0.1:5000';
+const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
 
 const StatusDot = ({ ok }) => (
   <span style={{ width: 8, height: 8, borderRadius: '50%', background: ok ? '#10b981' : '#ef4444', display: 'inline-block', boxShadow: ok ? '0 0 6px #10b981' : '0 0 6px #ef4444', flexShrink: 0 }} />

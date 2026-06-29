@@ -39,7 +39,7 @@ import FactCheckEvidence    from './FactCheckEvidence';
 import './App.css';
 import './index.css';
 
-const API = 'http://127.0.0.1:5000';
+const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '/api');
 
 // ─── Utility ──────────────────────────────────────────────────────────
 const sentimentColor = l => ({ positive: '#10b981', negative: '#ef4444', neutral: '#f59e0b' }[l] || '#64748b');

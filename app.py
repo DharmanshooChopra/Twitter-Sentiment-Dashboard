@@ -9,6 +9,10 @@ Loads and orchestrates 10 models simultaneously:
 All models run in parallel via concurrent.futures (see inference.py).
 """
 
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 import re
 import pickle
 import datetime
@@ -40,6 +44,20 @@ from phase10_engine import (
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+# WSGI prefix middleware to strip '/api' prefix for Vercel routes
+class PrefixMiddleware(object):
+    def __init__(self, wsgi_app, prefix=''):
+        self.wsgi_app = wsgi_app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        if environ.get('PATH_INFO', '').startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/api')
+
 load_dotenv()
 print(f"DEBUG MONGO_URI: {os.getenv('MONGO_URI')}")
 
@@ -47,10 +65,11 @@ print(f"DEBUG MONGO_URI: {os.getenv('MONGO_URI')}")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 
 try:
+    is_atlas = "mongodb+srv" in MONGO_URI
     mongo_client = MongoClient(
         MONGO_URI, 
         serverSelectionTimeoutMS=5000,
-        tls=True,
+        tls=is_atlas,
         tlsAllowInvalidCertificates=True
     )
     mongo_client.server_info()
@@ -73,11 +92,25 @@ if os.getenv("GEMINI_API_KEY"):
     except Exception as e:
         print(f"[WARNING] Gemini init failed: {e}")
 
-# Preload NLP tools globally 
-nltk.download("stopwords", quiet=True)
-nltk.download("punkt", quiet=True)
-nltk.download("punkt_tab", quiet=True)
-nltk.download("wordnet", quiet=True)
+# Preload NLP tools globally with serverless-safe downloads
+if os.getenv("VERCEL"):
+    nltk_data_dir = "/tmp/nltk_data"
+    if nltk_data_dir not in nltk.data.path:
+        nltk.data.path.append(nltk_data_dir)
+    os.makedirs(nltk_data_dir, exist_ok=True)
+else:
+    nltk_data_dir = None
+
+def _safe_nltk_download(resource):
+    try:
+        nltk.download(resource, download_dir=nltk_data_dir, quiet=True)
+    except Exception as e:
+        print(f"[WARNING] NLTK download failed for {resource}: {e}")
+
+_safe_nltk_download("stopwords")
+_safe_nltk_download("punkt")
+_safe_nltk_download("punkt_tab")
+_safe_nltk_download("wordnet")
 
 lemmatizer = WordNetLemmatizer()
 negation_words = {"not", "no", "never", "nor", "none", "n't"}
@@ -164,14 +197,15 @@ def _load_neural_models():
 
 # ── Load Everything ─────────────────────────────────────────────────
 print("\n🔧 Loading 10-Model Registry...")
-VECTORIZER_PATH = "models/tfidf_vectorizer.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+VECTORIZER_PATH = os.path.join(BASE_DIR, "models", "tfidf_vectorizer.pkl")
 
 # ── Category 1: Classic ML (5 models) ──
-_load_pkl_model("svm",    "SVM (Linear)",           "models/svm_model.pkl",    VECTORIZER_PATH)
-_load_pkl_model("logreg", "Logistic Regression",     "models/logreg_model.pkl", VECTORIZER_PATH)
-_load_pkl_model("rf",     "Random Forest",           "models/rf_model.pkl",     VECTORIZER_PATH)
-_load_pkl_model("xgb",    "XGBoost",                 "models/xgb_model.pkl",    VECTORIZER_PATH)
-_load_pkl_model("nb",     "Naive Bayes (MNB)",       "models/nb_model.pkl",     VECTORIZER_PATH)
+_load_pkl_model("svm",    "SVM (Linear)",           os.path.join(BASE_DIR, "models", "svm_model.pkl"),    VECTORIZER_PATH)
+_load_pkl_model("logreg", "Logistic Regression",     os.path.join(BASE_DIR, "models", "logreg_model.pkl"), VECTORIZER_PATH)
+_load_pkl_model("rf",     "Random Forest",           os.path.join(BASE_DIR, "models", "rf_model.pkl"),     VECTORIZER_PATH)
+_load_pkl_model("xgb",    "XGBoost",                 os.path.join(BASE_DIR, "models", "xgb_model.pkl"),    VECTORIZER_PATH)
+_load_pkl_model("nb",     "Naive Bayes (MNB)",       os.path.join(BASE_DIR, "models", "nb_model.pkl"),     VECTORIZER_PATH)
 
 # ── Category 2: Deep Learning (2 models) ──
 _load_neural_models()
@@ -205,9 +239,9 @@ print("\n🔍 Loading Misinformation Detection Module...")
 misinfo_model = None
 misinfo_vectorizer = None
 try:
-    with open("models/xgb_misinfo_model.pkl", "rb") as f:
+    with open(os.path.join(BASE_DIR, "models", "xgb_misinfo_model.pkl"), "rb") as f:
         misinfo_model = pickle.load(f)
-    with open("models/misinfo_vectorizer.pkl", "rb") as f:
+    with open(os.path.join(BASE_DIR, "models", "misinfo_vectorizer.pkl"), "rb") as f:
         misinfo_vectorizer = pickle.load(f)
     print("  ✓ Misinformation XGBoost model loaded.")
 except Exception as e:
@@ -243,40 +277,163 @@ def preprocess_text(text: str) -> str:
     """Legacy wrapper — delegates to the unified preprocessor module."""
     return preprocess_traditional(text)
 
-def get_gemini_verification(text: str):
-    """Trigger Gemini 2.5 Flash to fact-check text using Google Search Grounding."""
+# ── Gemini Re-Verification Engine Constants ────────────────────────────
+import time as _time
+
+_GEMINI_QUOTA_FALLBACK = {
+    "status": "Verification Temporarily Unavailable",
+    "summary": "Gemini API quota exhausted or temporarily unavailable. No verification data was generated.",
+    "reasoning": "Retry after cooldown period. The system will attempt re-verification on the next request.",
+    "references": [],
+    "quota_exhausted": True,
+}
+
+_GEMINI_ERROR_FALLBACK = {
+    "status": "Verification Unavailable",
+    "summary": "The verification engine encountered an unexpected error and could not produce a result.",
+    "reasoning": "An internal error occurred. No fabricated data has been returned.",
+    "references": [],
+    "quota_exhausted": False,
+}
+
+# Valid status values — any raw Gemini text outside this set is sanitised
+_VALID_STATUSES = {
+    "Verified", "Partially Verified", "Unverified",
+    "Misleading", "High Risk"
+}
+
+
+def _extract_grounded_sources(response) -> list:
+    """
+    Anti-hallucination guard: ONLY returns sources that come from Gemini's
+    grounding_chunks metadata. Never parses or invents sources from raw text.
+    """
+    sources = []
+    try:
+        candidates = getattr(response, "candidates", None) or []
+        if not candidates:
+            return sources
+        metadata = getattr(candidates[0], "grounding_metadata", None)
+        if not metadata:
+            return sources
+        chunks = getattr(metadata, "grounding_chunks", None) or []
+        for chunk in chunks:
+            web = getattr(chunk, "web", None)
+            if not web:
+                continue
+            url = getattr(web, "uri", None)
+            if not url or not url.startswith("http"):
+                continue  # Skip anything that isn't a real URL
+            title = getattr(web, "title", None) or "Supporting Article"
+            # Derive publisher name from hostname
+            try:
+                from urllib.parse import urlparse
+                publisher = urlparse(url).hostname or "Unknown Publisher"
+                publisher = publisher.replace("www.", "")
+            except Exception:
+                publisher = "Unknown Publisher"
+            sources.append({
+                "title": title,
+                "url": url,
+                "source": publisher,
+                "confidence": "High",   # Grounded = high confidence by definition
+            })
+    except Exception as exc:
+        print(f"[VerificationEngine] grounding metadata extraction failed: {exc}")
+    return sources[:3]  # Cap at 3 to keep UI compact
+
+
+def get_gemini_verification(text: str) -> dict:
+    """
+    Phase 12 — Hardened Gemini Re-Verification Engine
+
+    Design principles:
+    - Exponential-backoff retry (max 3 attempts) for transient failures
+    - Explicit 429 / RESOURCE_EXHAUSTED interceptor → returns quota fallback
+    - Anti-hallucination: sources ONLY from grounding metadata, never from text
+    - Structured, null-safe response parsing throughout
+    - NEVER fabricates summaries, citations, or publisher names
+    """
     if not gemini_client:
         return None
-    try:
-        response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=f"Fact-check this claim: '{text}'. State a brief verdict, then list your key findings starting each point with 'FINDING:'. Finally, provide a source URL if possible.",
-            config=types.GenerateContentConfig(
-                tools=[{"google_search": {}}],
-                temperature=0.2
-            )
-        )
-        verdict = response.text
-        source_url = None
-        
-        # Extract grounding metadata URL
+
+    prompt = (
+        f"Fact-check the following claim using your knowledge and web grounding: '{text}'.\n\n"
+        "Respond ONLY in this exact format — do not add any extra commentary:\n"
+        "VERIFICATION STATUS: <one of: Verified | Partially Verified | Unverified | Misleading | High Risk>\n"
+        "AI SUMMARY: <one sentence, factual, no invented claims>\n"
+        "REASONING: <one sentence justification based only on evidence you can confirm>\n\n"
+        "Rules:\n"
+        "- If you cannot confirm a fact, say 'Insufficient verified evidence available.'\n"
+        "- Do NOT invent sources, citations, or statistics.\n"
+        "- Maintain a clinical, enterprise-grade tone."
+    )
+
+    MAX_RETRIES = 3
+    BACKOFF_BASE = 2.0   # seconds
+
+    for attempt in range(1, MAX_RETRIES + 1):
         try:
-            metadata = response.candidates[0].grounding_metadata
-            if metadata and metadata.grounding_chunks:
-                for chunk in metadata.grounding_chunks:
-                    if chunk.web and chunk.web.uri:
-                        source_url = chunk.web.uri
-                        break
-        except Exception:
-            pass
-            
-        return {
-            "verdict": verdict,
-            "source_url": source_url
-        }
-    except Exception as e:
-        print(f"Gemini verification error: {e}")
-        return None
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=[{"google_search": {}}],
+                    temperature=0.1,
+                ),
+            )
+
+            raw_text = getattr(response, "text", "") or ""
+
+            # ── Parse structured fields ──────────────────────────────
+            def _extract_field(label: str, default: str) -> str:
+                if f"{label}:" not in raw_text:
+                    return default
+                try:
+                    value = raw_text.split(f"{label}:")[1].split("\n")[0].strip()
+                    # Strip surrounding brackets if Gemini echoed the template
+                    value = value.strip("[]")
+                    return value if value else default
+                except Exception:
+                    return default
+
+            raw_status = _extract_field("VERIFICATION STATUS", "Unverified")
+            # Sanitise: only accept known statuses
+            status = raw_status if raw_status in _VALID_STATUSES else "Unverified"
+
+            summary = _extract_field("AI SUMMARY", "Insufficient verified evidence available.")
+            reasoning = _extract_field("REASONING", "N/A")
+
+            # Anti-hallucination: sources ONLY from grounding metadata
+            sources = _extract_grounded_sources(response)
+
+            return {
+                "status": status,
+                "summary": summary,
+                "reasoning": reasoning,
+                "references": sources,
+                "quota_exhausted": False,
+            }
+
+        except Exception as exc:
+            err_str = str(exc).lower()
+            is_quota = any(k in err_str for k in (
+                "429", "resource_exhausted", "quota", "rate limit", "too many requests"
+            ))
+
+            if is_quota:
+                # Hard quota hit — do NOT retry (retrying immediately will just 429 again)
+                print(f"[VerificationEngine] Gemini quota exhausted on attempt {attempt}: {exc}")
+                return dict(_GEMINI_QUOTA_FALLBACK)
+
+            # Transient failure — exponential back-off
+            wait = BACKOFF_BASE ** attempt
+            print(f"[VerificationEngine] Attempt {attempt} failed ({exc}). Retrying in {wait:.1f}s...")
+            if attempt < MAX_RETRIES:
+                _time.sleep(wait)
+            else:
+                print(f"[VerificationEngine] All {MAX_RETRIES} retries exhausted.")
+                return dict(_GEMINI_ERROR_FALLBACK)
 
 def extract_keywords(text, vec):
     """PHASE 1: Extract feature weights from TFIDF"""
@@ -292,8 +449,8 @@ def extract_keywords(text, vec):
 
 # High-Performance Internal Cache
 cache_store = {}
-CACHE_HITS = 0
-TOTAL_REQUESTS = 0
+cache_hits = 0
+total_requests = 0
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -302,8 +459,8 @@ TOTAL_REQUESTS = 0
 
 @app.route("/analyze", methods=["POST"])
 def analyze_sentiment():
-    global CACHE_HITS, TOTAL_REQUESTS
-    TOTAL_REQUESTS += 1
+    global cache_hits, total_requests
+    total_requests += 1
     
     """Endpoint: multi-model parallel inference."""
     data = request.get_json() if request.is_json else request.form
@@ -315,7 +472,7 @@ def analyze_sentiment():
     # Cache check
     text_hash = hashlib.md5(raw_text.encode()).hexdigest()
     if text_hash in cache_store:
-        CACHE_HITS += 1
+        cache_hits += 1
         return jsonify(cache_store[text_hash]), 200
 
     # ── Parallel Multi-Model Inference ──────────────────────────
@@ -433,9 +590,8 @@ def analyze_sentiment():
     if label in ["positive", "neutral"] and mis_risk == "High":
         complex_anomaly = True
         
-    gemini_verification = None
-    if mis_risk == "High":
-        gemini_verification = get_gemini_verification(raw_text)
+    # ── Automated Gemini Re-Verification ──────────────────
+    gemini_verification = get_gemini_verification(raw_text)
     
     response_payload = {
         "error": None,
@@ -473,12 +629,15 @@ def get_loaded_models():
 @app.route("/metrics", methods=["GET"])
 def get_metrics():
     """Endpoint for Phase 5 system metrics analysis"""
-    cache_hit_ratio = round((CACHE_HITS / TOTAL_REQUESTS) * 100, 2) if TOTAL_REQUESTS > 0 else 0
-    total_db = history_collection.count_documents({}) if history_collection else sum(app_stats.values())
+    if total_requests > 0:
+        cache_hit_ratio = round((cache_hits / (total_requests or 1)) * 100, 2)
+    else:
+        cache_hit_ratio = 0.0
+    total_db = history_collection.count_documents({}) if history_collection is not None else sum(app_stats.values())
     
     return jsonify({
         "system_health": "operational",
-        "requests_total": TOTAL_REQUESTS,
+        "requests_total": total_requests,
         "cache_hit_ratio_pct": cache_hit_ratio,
         "models_loaded": len(MODEL_REGISTRY),
         "ml_telemetry": {
@@ -750,6 +909,9 @@ def executive_briefing():
         )
         return jsonify({"report": response.text})
     except Exception as e:
+        err = str(e).lower()
+        if any(k in err for k in ("429", "resource_exhausted", "quota", "rate limit")):
+            return jsonify({"report": "## Executive Briefing Temporarily Unavailable\n\n**Reason:** Gemini API quota exhausted.\n\n**Action:** The free-tier daily limit of 20 requests has been reached. Briefings will resume automatically after quota reset (typically within 24 hours).\n\n*All other NeuroPulse systems remain fully operational.*"}), 200
         return jsonify({"error": f"Briefing generation failed: {str(e)}"}), 500
 
 @app.route("/copilot", methods=["POST"])
@@ -771,7 +933,7 @@ def copilot_chat():
     history_summary = ""
 
     try:
-        if history_collection:
+        if history_collection is not None:
             pipeline = [{"$group": {"_id": "$sentiment", "count": {"$sum": 1}}}]
             stats_agg = list(history_collection.aggregate(pipeline))
             stats_dict = {r["_id"]: r["count"] for r in stats_agg}
@@ -845,7 +1007,14 @@ USER QUESTION: {user_message}"""
         )
         return jsonify({"reply": response.text, "source": "gemini"})
     except Exception as e:
-        return jsonify({"reply": f"Copilot engine error: {str(e)}", "source": "error"}), 500
+        err = str(e).lower()
+        if any(k in err for k in ("429", "resource_exhausted", "quota", "rate limit")):
+            # Quota hit — fall back to rule-based engine gracefully
+            for key, val in fallback_map.items():
+                if key in user_message.lower():
+                    return jsonify({"reply": val + "\n\n*Note: Gemini quota exhausted. Response generated by rule-based engine.*", "source": "rule_based_quota"})
+            return jsonify({"reply": f"Gemini quota exhausted. Live stats: {stats_summary} | Active models: {models_summary}", "source": "rule_based_quota"})
+        return jsonify({"reply": f"Copilot encountered an error: {str(e)}", "source": "error"}), 500
 
 
 
@@ -872,7 +1041,8 @@ def demo_stream():
         try:
             text = t["text"]
             preprocessed = preprocess_traditional(text)
-            model_results, consensus = run_all_models(text, preprocessed, MODEL_REGISTRY)
+            model_results = run_all_models(text, MODEL_REGISTRY)
+            consensus = compute_consensus(model_results)
 
             # Misinfo check
             risk = "Low"
@@ -994,8 +1164,8 @@ def stream_demo_single():
         return jsonify({"error": "No data"}), 500
     t = tweet_batch[0]
     try:
-        preprocessed = preprocess_traditional(t["text"])
-        model_results, consensus = run_all_models(t["text"], preprocessed, MODEL_REGISTRY)
+        model_results = run_all_models(t["text"], MODEL_REGISTRY)
+        consensus = compute_consensus(model_results)
         t["sentiment"] = consensus.get("label", t["sentiment"])
         t["confidence"] = consensus.get("confidence", t["confidence"])
         t["consensus"] = consensus

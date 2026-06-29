@@ -1,0 +1,5 @@
+.git
+.github
+.venv
+node_modules
+models/rf_model.pkl

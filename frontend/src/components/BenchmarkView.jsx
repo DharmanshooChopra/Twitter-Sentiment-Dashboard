@@ -8,7 +8,7 @@ import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
 import { FlaskConical, Loader2, RefreshCw, Award } from 'lucide-react';
 
-const API = 'http://127.0.0.1:5000';
+const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
 const TOOLTIP_STYLE = { 
   background: 'var(--bg-elevated)', border: '1px solid var(--border-dim)', 
   borderRadius: 10, fontSize: '0.8rem', color: 'var(--text-1)', padding: '10px 14px',

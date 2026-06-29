@@ -12,11 +12,24 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
-# Ensure NLTK data is available
-nltk.download("stopwords", quiet=True)
-nltk.download("punkt", quiet=True)
-nltk.download("punkt_tab", quiet=True)
-nltk.download("wordnet", quiet=True)
+import os
+
+# Ensure NLTK data is available with serverless-safe downloads
+if os.getenv("VERCEL"):
+    _nltk_dir = "/tmp/nltk_data"
+    if _nltk_dir not in nltk.data.path:
+        nltk.data.path.append(_nltk_dir)
+    os.makedirs(_nltk_dir, exist_ok=True)
+else:
+    _nltk_dir = None
+
+try:
+    nltk.download("stopwords", download_dir=_nltk_dir, quiet=True)
+    nltk.download("punkt", download_dir=_nltk_dir, quiet=True)
+    nltk.download("punkt_tab", download_dir=_nltk_dir, quiet=True)
+    nltk.download("wordnet", download_dir=_nltk_dir, quiet=True)
+except Exception:
+    pass
 
 _lemmatizer = WordNetLemmatizer()
 _negation_words = {"not", "no", "never", "nor", "none", "n't"}

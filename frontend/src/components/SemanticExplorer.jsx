@@ -8,7 +8,7 @@ import axios from 'axios';
 import { Network, Database, RefreshCw, Loader2, BrainCircuit, Maximize } from 'lucide-react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis } from 'recharts';
 
-const API = 'http://127.0.0.1:5000';
+const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5000' : '/api');
 
 export default function SemanticExplorer() {
   const [data, setData] = useState(null);
