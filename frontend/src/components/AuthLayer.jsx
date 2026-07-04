@@ -4,12 +4,14 @@
  */
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Fingerprint, Lock, Cpu, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Shield, Fingerprint, Lock, Cpu, ArrowRight, Loader2, AlertTriangle, Key } from 'lucide-react';
 
 export default function AuthLayer({ onLogin }) {
   const [step, setStep] = useState(0); // 0: idle, 1: authenticating, 2: success
   const [username, setUsername] = useState('analyst_01');
   const [password, setPassword] = useState('••••••••••••');
+  const [rapidApiKey, setRapidApiKey] = useState('');
+  const [twitterToken, setTwitterToken] = useState('');
   const [logs, setLogs] = useState([]);
 
   const handleLogin = (e) => {
@@ -33,7 +35,7 @@ export default function AuthLayer({ onLogin }) {
     });
 
     setTimeout(() => setStep(2), time + 500);
-    setTimeout(() => onLogin(), time + 1500);
+    setTimeout(() => onLogin(rapidApiKey, twitterToken), time + 1500);
   };
 
   return (
@@ -86,6 +88,26 @@ export default function AuthLayer({ onLogin }) {
                 <Lock size={16} color="#64748b" style={{ position: 'absolute', left: 12, top: 12 }} />
                 <input 
                   type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px 10px 38px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#f1f5f9', outline: 'none', fontFamily: 'monospace', fontSize: '0.9rem' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>RAPIDAPI KEY</label>
+              <div style={{ position: 'relative' }}>
+                <Key size={16} color="#64748b" style={{ position: 'absolute', left: 12, top: 12 }} />
+                <input 
+                  type="text" placeholder="Enter RapidAPI Key" value={rapidApiKey} onChange={e => setRapidApiKey(e.target.value)} required
+                  style={{ width: '100%', padding: '10px 12px 10px 38px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#f1f5f9', outline: 'none', fontFamily: 'monospace', fontSize: '0.9rem' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>TWITTER BEARER TOKEN (OPTIONAL)</label>
+              <div style={{ position: 'relative' }}>
+                <Shield size={16} color="#64748b" style={{ position: 'absolute', left: 12, top: 12 }} />
+                <input 
+                  type="password" placeholder="Enter Twitter Token" value={twitterToken} onChange={e => setTwitterToken(e.target.value)}
                   style={{ width: '100%', padding: '10px 12px 10px 38px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#f1f5f9', outline: 'none', fontFamily: 'monospace', fontSize: '0.9rem' }}
                 />
               </div>

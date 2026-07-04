@@ -13,7 +13,7 @@ export default function ModelsView({ loadedModels }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '1rem', overflowY: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', marginBottom: '0.25rem' }}>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '0.25rem' }}>
         ◈ Model Registry ({entries.length}/10)
       </h2>
       <p style={{ color: '#475569', fontSize: '0.8rem', marginBottom: '1.5rem' }}>
@@ -66,7 +66,7 @@ export default function ModelsView({ loadedModels }) {
                   <Cpu size={16} color={cfg.color} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#e2e8f0', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-1)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {info.display_name}
                   </div>
                   <span style={{

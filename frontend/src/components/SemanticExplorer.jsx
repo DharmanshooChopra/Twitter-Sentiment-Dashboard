@@ -8,7 +8,7 @@ import axios from 'axios';
 import { Network, Database, RefreshCw, Loader2, BrainCircuit, Maximize } from 'lucide-react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis } from 'recharts';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 export default function SemanticExplorer() {
   const [data, setData] = useState(null);
@@ -49,7 +49,7 @@ export default function SemanticExplorer() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <BrainCircuit size={18} color="#f472b6" /> Semantic Engine & Embeddings
           </h2>
           <p style={{ color: '#475569', fontSize: '0.78rem', margin: 0 }}>Research-grade NLP context clustering and entity extraction</p>
@@ -104,7 +104,7 @@ export default function SemanticExplorer() {
                    <motion.div key={i} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: i * 0.1 }}
                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                       <span style={{ color: '#e2e8f0', fontWeight: 800, fontSize: '0.85rem' }}>{e.name}</span>
+                       <span style={{ color: 'var(--text-1)', fontWeight: 800, fontSize: '0.85rem' }}>{e.name}</span>
                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: 4, background: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}>{e.type}</span>
                      </div>
                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b' }}>

@@ -3,8 +3,8 @@
 # 🧠 NeuroPulse Code 2.0
 **AI-Powered Enterprise Sentiment Intelligence & Misinformation Analytics Platform**
 
-[![React](https://img.shields.io/badge/React-18.0-blue?logo=react&logoColor=white)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.0-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-19.0-blue?logo=react&logoColor=white)](https://reactjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.0-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Gemini](https://img.shields.io/badge/Google-Gemini_2.5_Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev/)
@@ -28,7 +28,6 @@ NeuroPulse 2.0 features a completely bespoke, hardware-accelerated user interfac
 
 *   **10-Model Transformer Ensemble Engine**: Parallel execution across models like RoBERTa, DistilBERT, BERT, XGBoost, and SVM.
 *   **AI Copilot**: A conversational agent natively hooked into system telemetry to answer complex situational queries.
-*   **Executive Intelligence Briefing**: One-click generation of multi-paragraph strategic reports synthesized by Gemini 2.5.
 *   **Misinformation Surveillance Pipeline**: Dedicated classifier that intercepts malicious narratives and cross-references them via web-grounding.
 *   **Semantic Explorer (3D PCA)**: Interactive topological projection mapping live entities and sentiment vectors.
 *   **Consensus Matrix**: A fully transparent voting table explaining exactly which models agree or disagree on any given text.
@@ -43,7 +42,7 @@ NeuroPulse 2.0 features a completely bespoke, hardware-accelerated user interfac
 ## 🛠 Technology Stack
 
 ### Frontend Architecture
-*   **Framework**: React 18 & Vite
+*   **Framework**: React 19 & Next.js 15 (App Router)
 *   **Styling**: Vanilla CSS Variables (Dynamic Theme Engine) & TailwindCSS
 *   **Animations**: Framer Motion (Hardware-accelerated layouts)
 *   **Visualizations**: Recharts (Custom SVG Gradient plotting)
@@ -118,7 +117,7 @@ cd frontend
 # Install Node dependencies
 npm install
 
-# Start the Vite Development Server
+# Start the Next.js Development Server
 npm run dev
 ```
 
@@ -133,7 +132,6 @@ Double-click `start_both.bat` from the root directory to simultaneously launch t
 *   **Theme Switching**: Press `Ctrl+K` to open the Command Palette, type "Settings", and toggle between the "Cyber Dark" and "Premium Light" themes.
 *   **Semantic Explorer**: Navigate via the sidebar to view the high-dimensional projection of your sentiment data. Hover over entities to view exact polarity coordinates.
 *   **Demo Mode**: In the Command Palette, type "Demo" to trigger the Cinematic Threat Simulation—a highly effective tool for demonstrating the platform's response to viral anomalies without requiring live API credits.
-*   **Executive Briefing**: Navigate to the briefing module to command the Gemini Copilot to write a comprehensive, exportable markdown report of the current session.
 
 ---
 
@@ -156,14 +154,16 @@ Double-click `start_both.bat` from the root directory to simultaneously launch t
 ```text
 NeuroPulse-2.0/
 │
-├── frontend/                  # React + Vite Client
+├── frontend/                  # React + Next.js Client
 │   ├── public/                # Static Assets
 │   ├── src/
 │   │   ├── components/        # Highly modular React UI components
-│   │   ├── App.jsx            # Main Router & State Provider
+│   │   ├── app/               # Next.js App Router Structure
+│   │   │   ├── layout.jsx     # Root Layout
+│   │   │   └── page.jsx       # Main Dashboard View
 │   │   └── index.css          # Core CSS Variables & Theme Engine
 │   ├── package.json           # Node Dependencies
-│   └── vite.config.js         # Vite Configuration
+│   └── next.config.mjs        # Next.js Configuration
 │
 ├── models/                    # Serialized Machine Learning Artifacts
 │   ├── rf_model.pkl           # Random Forest Checkpoint

@@ -7,7 +7,7 @@ import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Loader2 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 const TOOLTIP_STYLE = { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, fontSize: '0.75rem', color: '#e2e8f0' };
 const TREND_COLOR = { improving: '#10b981', declining: '#ef4444', stable: '#f59e0b', neutral: '#64748b' };
 
@@ -41,7 +41,7 @@ export default function ForecastPanel() {
     <div style={{ padding: '1rem', overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#e2e8f0', margin: '0 0 4px' }}>Predictive Sentiment Forecast</h3>
+          <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-1)', margin: '0 0 4px' }}>Predictive Sentiment Forecast</h3>
           <p style={{ color: '#475569', fontSize: '0.75rem', margin: 0 }}>Linear regression + moving average over MongoDB history</p>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -101,34 +101,36 @@ export default function ForecastPanel() {
             </ResponsiveContainer>
           </div>
 
-          <div style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '0.6rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.65rem', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>Step-by-Step Forecast Table</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-              <thead>
-                <tr>
-                  {['Step','Predicted','Upper','Lower','Signal'].map(h => (
-                    <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.62rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.forecast.map((f, i) => {
-                  const sig = f.value > 0.2 ? 'BULLISH' : f.value < -0.2 ? 'BEARISH' : 'NEUTRAL';
-                  const sc  = sig === 'BULLISH' ? '#10b981' : sig === 'BEARISH' ? '#ef4444' : '#f59e0b';
-                  return (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'default' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.05)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <td style={{ padding: '0.45rem 0.75rem', color: '#a5b4fc', fontFamily: 'monospace', fontWeight: 700 }}>{f.label}</td>
-                      <td style={{ padding: '0.45rem 0.75rem', color: f.value >= 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>{f.value > 0 ? '+' : ''}{f.value}</td>
-                      <td style={{ padding: '0.45rem 0.75rem', color: '#64748b' }}>+{f.upper}</td>
-                      <td style={{ padding: '0.45rem 0.75rem', color: '#64748b' }}>{f.lower}</td>
-                      <td style={{ padding: '0.45rem 0.75rem' }}><span style={{ padding: '1px 8px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${sc}15`, color: sc }}>{sig}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="scroll-thin" style={{ overflowY: 'auto', maxHeight: '200px', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                    {['Step','Predicted','Upper','Lower','Signal'].map(h => (
+                      <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.62rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'var(--bg-elevated)', backdropFilter: 'blur(8px)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.forecast.map((f, i) => {
+                    const sig = f.value > 0.2 ? 'BULLISH' : f.value < -0.2 ? 'BEARISH' : 'NEUTRAL';
+                    const sc  = sig === 'BULLISH' ? '#10b981' : sig === 'BEARISH' ? '#ef4444' : '#f59e0b';
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'default' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.05)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <td style={{ padding: '0.45rem 0.75rem', color: '#a5b4fc', fontFamily: 'monospace', fontWeight: 700 }}>{f.label}</td>
+                        <td style={{ padding: '0.45rem 0.75rem', color: f.value >= 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>{f.value > 0 ? '+' : ''}{f.value}</td>
+                        <td style={{ padding: '0.45rem 0.75rem', color: '#64748b' }}>+{f.upper}</td>
+                        <td style={{ padding: '0.45rem 0.75rem', color: '#64748b' }}>{f.lower}</td>
+                        <td style={{ padding: '0.45rem 0.75rem' }}><span style={{ padding: '1px 8px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${sc}15`, color: sc }}>{sig}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div style={{ fontSize: '0.65rem', color: '#334155', textAlign: 'center' }}>⚠ Statistical estimates only. Not financial advice.</div>
         </>

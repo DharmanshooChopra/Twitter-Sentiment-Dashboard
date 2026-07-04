@@ -25,7 +25,7 @@ export default function AnalyticsView({ statsData, historyData }) {
       animate={{ opacity: 1 }}
       style={{ padding: '1rem', overflowY: 'auto', height: '100%' }}
     >
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', marginBottom: '0.25rem' }}>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '0.25rem' }}>
         ◈ High-Resolution Telemetry
       </h2>
       <p style={{ color: '#475569', fontSize: '0.8rem', marginBottom: '1.5rem' }}>

@@ -11,14 +11,13 @@ import {
   BarChart3, ShieldAlert, Brain, TrendingUp, Zap, MessageCircle,
 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 const SUGGESTED_PROMPTS = [
   { icon: BarChart3,   label: 'Analyze sentiment trends',         prompt: 'Analyze the current sentiment trends from the live dashboard data.' },
   { icon: ShieldAlert, label: 'Explain high misinfo risk',        prompt: 'Why is misinformation risk high and what should I do?' },
   { icon: Brain,       label: 'Explain model disagreements',      prompt: 'Which models are disagreeing and why might that happen?' },
   { icon: TrendingUp,  label: 'Predict future sentiment',         prompt: 'Based on recent history, what is the predicted sentiment trend?' },
-  { icon: Zap,         label: 'Generate Executive Briefing',      prompt: 'Generate an Executive Briefing' },
   { icon: BarChart3,   label: 'Explain confidence score',         prompt: 'Explain what the ensemble confidence score means and how it is calculated.' },
 ];
 
@@ -72,20 +71,14 @@ export default function AICopilot({ isOpen, setIsOpen, results, historyData, loa
     setIsThinking(true);
 
     try {
-      if (msg === 'Generate an Executive Briefing') {
-        const res = await axios.get(`${API}/executive_briefing`);
-        const reply = res.data?.report || 'Failed to generate briefing.';
-        setMessages(prev => [...prev, { role: 'assistant', text: reply, done: false }]);
-      } else {
-        const context = {
-          last_result: results || {},
-          models_count: Object.keys(loadedModels).length,
-          recent_items: historyData.slice(0, 5),
-        };
-        const res = await axios.post(`${API}/copilot`, { message: msg, context });
-        const reply = res.data?.reply || 'Sorry, I could not process that request.';
-        setMessages(prev => [...prev, { role: 'assistant', text: reply, done: false }]);
-      }
+      const context = {
+        last_result: results || {},
+        models_count: Object.keys(loadedModels).length,
+        recent_items: historyData.slice(0, 5),
+      };
+      const res = await axios.post(`${API}/copilot`, { message: msg, context });
+      const reply = res.data?.reply || 'Sorry, I could not process that request.';
+      setMessages(prev => [...prev, { role: 'assistant', text: reply, done: false }]);
     } catch (err) {
       const errMsg = err?.response?.data?.reply || 'Backend unreachable. Ensure Flask is running on port 5000.';
       setMessages(prev => [...prev, { role: 'assistant', text: errMsg, done: true }]);
@@ -144,6 +137,7 @@ export default function AICopilot({ isOpen, setIsOpen, results, historyData, loa
         {isOpen && (
           <motion.div
             key="copilot"
+            className="copilot-drawer"
             initial={{ opacity: 0, x: 60, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 60, scale: 0.95 }}
@@ -180,7 +174,7 @@ export default function AICopilot({ isOpen, setIsOpen, results, historyData, loa
                 }}/>
               </div>
               <div>
-                <div style={{ fontSize:'0.82rem', fontWeight:700, color:'#e2e8f0' }}>NeuroPulse AI Copilot</div>
+                <div style={{ fontSize:'0.82rem', fontWeight:700, color:'var(--text-1)' }}>NeuroPulse AI Copilot</div>
                 <div style={{ fontSize:'0.62rem', color:'#10b981', display:'flex', alignItems:'center', gap:4 }}>
                   <Sparkles size={9}/> Powered by Gemini 2.5 Flash
                 </div>
@@ -218,18 +212,20 @@ export default function AICopilot({ isOpen, setIsOpen, results, historyData, loa
                       <Bot size={13} color="white"/>
                     </div>
                   )}
-                  <div style={{
-                    maxWidth:'82%',
-                    padding:'0.6rem 0.85rem',
-                    borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                    background: msg.role === 'user'
-                      ? 'linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.3))'
-                      : 'rgba(255,255,255,0.05)',
-                    border: msg.role === 'user'
-                      ? '1px solid rgba(139,92,246,0.3)'
-                      : '1px solid rgba(255,255,255,0.07)',
-                    fontSize:'0.8rem', color:'#e2e8f0', lineHeight:1.55, whiteSpace:'pre-wrap',
-                  }}>
+                  <div 
+                    className={msg.role === 'user' ? 'copilot-msg-user' : 'copilot-msg-ai'}
+                    style={{
+                      maxWidth:'82%',
+                      padding:'0.6rem 0.85rem',
+                      borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                      background: msg.role === 'user'
+                        ? 'linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.3))'
+                        : 'rgba(255,255,255,0.05)',
+                      border: msg.role === 'user'
+                        ? '1px solid rgba(139,92,246,0.3)'
+                        : '1px solid rgba(255,255,255,0.07)',
+                      fontSize:'0.8rem', color:'var(--text-1)', lineHeight:1.55, whiteSpace:'pre-wrap',
+                    }}>
                     {msg.role === 'assistant' && !msg.done
                       ? <TypingText text={msg.text} onDone={() => markDone(i)}/>
                       : msg.text
@@ -295,16 +291,20 @@ export default function AICopilot({ isOpen, setIsOpen, results, historyData, loa
             </div>
 
             {/* Input */}
-            <div style={{
-              padding:'0.7rem', borderTop:'1px solid rgba(255,255,255,0.06)',
-              background:'rgba(0,0,0,0.2)', flexShrink:0,
-            }}>
-              <div style={{
-                display:'flex', alignItems:'flex-end', gap:8,
-                background:'rgba(255,255,255,0.05)', border:'1px solid rgba(139,92,246,0.2)',
-                borderRadius:12, padding:'0.5rem 0.6rem',
-                transition:'border-color 0.2s',
+            <div 
+              className="copilot-input-area"
+              style={{
+                padding:'0.7rem', borderTop:'1px solid rgba(255,255,255,0.06)',
+                background:'rgba(0,0,0,0.2)', flexShrink:0,
               }}>
+              <div 
+                className="copilot-textarea-wrap"
+                style={{
+                  display:'flex', alignItems:'flex-end', gap:8,
+                  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(139,92,246,0.2)',
+                  borderRadius:12, padding:'0.5rem 0.6rem',
+                  transition:'border-color 0.2s',
+                }}>
                 <MessageCircle size={14} color="#475569" style={{ flexShrink:0, marginBottom:2 }}/>
                 <textarea
                   ref={inputRef}
@@ -316,7 +316,7 @@ export default function AICopilot({ isOpen, setIsOpen, results, historyData, loa
                   rows={1}
                   style={{
                     flex:1, background:'transparent', border:'none', outline:'none',
-                    color:'#e2e8f0', fontSize:'0.8rem', fontFamily:'inherit', resize:'none',
+                    color:'var(--text-1)', fontSize:'0.8rem', fontFamily:'inherit', resize:'none',
                     lineHeight:1.5, maxHeight:80, overflowY:'auto',
                   }}
                 />

@@ -8,7 +8,7 @@ import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
 import { FlaskConical, Loader2, RefreshCw, Award } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 const TOOLTIP_STYLE = { 
   background: 'var(--bg-elevated)', border: '1px solid var(--border-dim)', 
   borderRadius: 10, fontSize: '0.8rem', color: 'var(--text-1)', padding: '10px 14px',
@@ -67,7 +67,7 @@ export default function BenchmarkView() {
       style={{ padding: '1rem', overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FlaskConical size={18} color="#8b5cf6" /> Research Benchmarking
@@ -88,7 +88,7 @@ export default function BenchmarkView() {
       {data && !loading && (
         <>
           {/* Ensemble summary */}
-          <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.12),rgba(139,92,246,0.08))', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 12, padding: '1rem', display: 'flex', gap: '2rem', alignItems: 'center' }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.12),rgba(139,92,246,0.08))', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 12, padding: '1rem', display: 'flex', gap: '2rem', alignItems: 'center', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Award size={28} color="#f59e0b" />
               <div>
@@ -109,7 +109,7 @@ export default function BenchmarkView() {
           </div>
 
           {/* Metric selector */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             {METRIC_CFG.map(m => (
               <motion.button key={m.key} onClick={() => setMetric(m.key)} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
                 style={{ padding: '4px 14px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
@@ -122,7 +122,7 @@ export default function BenchmarkView() {
           </div>
 
           {/* Bar chart */}
-          <div style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '1rem' }}>
+          <div style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '1rem', flexShrink: 0 }}>
             <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 10 }}>
               {selectedMetricCfg.label} by Model (%)
             </div>
@@ -163,9 +163,9 @@ export default function BenchmarkView() {
           </div>
 
           {/* Full metrics table */}
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-dim)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-dim)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
             <div style={{ padding: '0.8rem 1.2rem', borderBottom: '1px solid var(--border-dim)', fontSize: '0.75rem', color: 'var(--text-1)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800 }}>Full Metrics Matrix</div>
-            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '350px' }}>
+            <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>

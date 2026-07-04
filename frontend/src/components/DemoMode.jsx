@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Play, Square, Zap, Shield, Radio, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 const SENTIMENT_CFG = {
   positive: { color: '#10b981', bg: 'rgba(16,185,129,0.12)', label: '▲ POSITIVE' },
@@ -95,7 +95,7 @@ export default function DemoMode() {
 
       {/* Header */}
       <div>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Radio size={18} color="#8b5cf6" /> Demo Intelligence Engine
         </h2>
         <p style={{ color: '#475569', fontSize: '0.8rem' }}>

@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Activity, Database, Cpu, Shield, Zap, Wifi, RefreshCw, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 const StatusDot = ({ ok }) => (
   <span style={{ width: 8, height: 8, borderRadius: '50%', background: ok ? '#10b981' : '#ef4444', display: 'inline-block', boxShadow: ok ? '0 0 6px #10b981' : '0 0 6px #ef4444', flexShrink: 0 }} />
@@ -37,7 +37,7 @@ export default function SystemHealthView() {
       style={{ padding: '1rem', overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Activity size={18} color="#10b981" /> System Health Center
           </h2>
           <p style={{ color: '#475569', fontSize: '0.78rem', margin: 0 }}>Live enterprise telemetry — refreshes every 20s</p>

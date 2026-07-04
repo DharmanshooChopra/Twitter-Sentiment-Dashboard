@@ -79,7 +79,7 @@ const FactCheckEvidence = ({ verificationData }) => {
                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <FileText size={12} color="#8b5cf6" /> RE-VERIFICATION SUMMARY
                 </div>
-                <p style={{ margin: 0, color: '#e2e8f0', fontSize: '0.88rem', lineHeight: 1.6, opacity: 0.9 }}>
+                <p style={{ margin: 0, color: 'var(--text-1)', fontSize: '0.88rem', lineHeight: 1.6, opacity: 0.9 }}>
                     {summary}
                 </p>
                 {reasoning && reasoning !== 'N/A' && !isUnavailable && (
@@ -128,7 +128,7 @@ const FactCheckEvidence = ({ verificationData }) => {
                                     <Globe size={12} color="#8b5cf6" />
                                 </div>
                                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ color: '#f1f5f9', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <div style={{ color: 'var(--text-1)', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {ref.title}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>

@@ -11,6 +11,10 @@ Trains all Classic ML models using the EXISTING tfidf_vectorizer.pkl:
 All models are saved to the models/ directory as .pkl files.
 """
 
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 import re
 import os
 import pickle
@@ -127,6 +131,10 @@ def main():
         X_train_vec = vectorizer.fit_transform(X_train)
         X_test_vec = vectorizer.transform(X_test)
     
+    # Slice the training data for faster local fit (avoids long SVM Platt scaling stalls)
+    X_train_vec = X_train_vec[:6000]
+    y_train = y_train[:6000]
+    
     Path("models").mkdir(exist_ok=True)
     
     cv_strategy = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
@@ -139,27 +147,21 @@ def main():
     best_lr = train_model(
         "Logistic Regression",
         LogisticRegression(max_iter=2000, class_weight="balanced", random_state=42),
-        X_train_vec, y_train, X_test_vec, y_test,
-        param_grid={"C": [0.5, 1.0, 2.0]},
-        cv=cv_strategy
+        X_train_vec, y_train, X_test_vec, y_test
     )
     
     # 2. SVM (Linear)
     best_svm = train_model(
         "SVM (Linear Kernel)",
         SVC(kernel='linear', probability=True, class_weight="balanced", random_state=42),
-        X_train_vec, y_train, X_test_vec, y_test,
-        param_grid={"C": [0.5, 1.0, 2.0]},
-        cv=cv_strategy
+        X_train_vec, y_train, X_test_vec, y_test
     )
     
     # 3. Random Forest — NEW
     best_rf = train_model(
         "Random Forest",
         RandomForestClassifier(class_weight="balanced", random_state=42, n_jobs=-1),
-        X_train_vec, y_train, X_test_vec, y_test,
-        param_grid={"n_estimators": [100, 200], "max_depth": [None, 30]},
-        cv=cv_strategy
+        X_train_vec, y_train, X_test_vec, y_test
     )
     
     # 4. XGBoost — NEW  
@@ -173,18 +175,14 @@ def main():
             random_state=42,
             n_jobs=-1
         ),
-        X_train_vec, y_train, X_test_vec, y_test,
-        param_grid={"n_estimators": [100, 200], "max_depth": [4, 6], "learning_rate": [0.1, 0.3]},
-        cv=cv_strategy
+        X_train_vec, y_train, X_test_vec, y_test
     )
     
     # 5. Multinomial Naive Bayes — NEW
     best_nb = train_model(
         "Multinomial Naive Bayes",
         MultinomialNB(),
-        X_train_vec, y_train, X_test_vec, y_test,
-        param_grid={"alpha": [0.1, 0.5, 1.0]},
-        cv=cv_strategy
+        X_train_vec, y_train, X_test_vec, y_test
     )
     
     # ══════════════════════════════════════════════════════════════

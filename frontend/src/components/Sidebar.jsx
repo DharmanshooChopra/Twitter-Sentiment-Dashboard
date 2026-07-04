@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { id: 'benchmark', icon: FlaskConical,    label: 'Research Analytics' },
   { id: 'telemetry', icon: Activity,        label: 'AI Brain Telemetry' },
   { id: 'semantic',  icon: BrainCircuit,    label: 'Semantic Explorer' },
-  { id: 'briefing',  icon: FileText,        label: 'Executive Briefing' },
   { id: 'architecture', icon: Component,    label: 'System Architecture' },
   { id: 'demo',      icon: PlaySquare,      label: 'Demo Mode' },
   { id: 'health',    icon: Database,        label: 'System Health' },
@@ -53,7 +52,7 @@ export default function Sidebar({
         style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
       >
         <div style={{ fontSize: '1.3rem', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1.2 }}>
-          <span style={{ color: '#fff' }}>Neuro</span>
+          <span style={{ color: 'var(--text-1)' }}>Neuro</span>
           <span style={{ color: '#8b5cf6' }}>Pulse</span>
           <span style={{
             fontSize: '0.55rem', fontWeight: 700, color: '#06b6d4',

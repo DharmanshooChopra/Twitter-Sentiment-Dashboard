@@ -20,7 +20,6 @@ const COMMANDS = [
   { id:'consensus', label:'Consensus Matrix',        icon:Network,         action:'nav',    target:'consensus',  kbd:'G C' },
   { id:'telemetry', label:'AI Brain Telemetry',      icon:Activity,        action:'nav',    target:'telemetry',  kbd:'G T' },
   { id:'semantic',  label:'Semantic Explorer',       icon:BrainCircuit,    action:'nav',    target:'semantic',   kbd:'G X' },
-  { id:'briefing',  label:'Executive Briefing',      icon:FileText,        action:'nav',    target:'briefing',   kbd:'G E' },
   { id:'architecture', label:'System Architecture',  icon:Component,       action:'nav',    target:'architecture', kbd:'G A' },
   { id:'demo',      label:'Faculty Demo Mode',       icon:PlaySquare,      action:'nav',    target:'demo',       kbd:'G P' },
   { id:'health',    label:'System Health',           icon:Database,        action:'nav',    target:'health',     kbd:'G H' },

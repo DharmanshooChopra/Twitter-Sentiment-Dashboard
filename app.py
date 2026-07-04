@@ -121,7 +121,7 @@ sentiment_map = {0: "negative", 1: "neutral", 2: "positive"}
 app_stats = {"positive": 0, "neutral": 0, "negative": 0}
 app_history = []
 
-DEFAULT_BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAD6X8QEAAAAACAxAvGli4Fh1hUi1MvZTA2CKPyA%3DYJnEXhH7QtrapKc24PrA9q5wb2Cf9LSMLexmNLqYQNGdlPl7BU"
+DEFAULT_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN", "")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -728,7 +728,9 @@ def fetch_tweet():
     query = data.get("query", "").strip()
     count = max(1, min(int(data.get("count", 1)), 100))
     
-    RAPIDAPI_KEY = "531ca7f9b5mshc35c67f4e9ecc2fp1252aajsn596af6fc6b08"
+    RAPIDAPI_KEY = request.headers.get("x-rapidapi-key") or os.getenv("RAPIDAPI_KEY")
+    if not RAPIDAPI_KEY:
+        return jsonify({"error": "RapidAPI Key is missing. Enter your key on the authentication page or configure it in the server environment."}), 400
     RAPIDAPI_HOST = "twitter241.p.rapidapi.com"
         
     if not query:
@@ -878,41 +880,6 @@ def nlp_entities():
     
     return jsonify({"clusters": clusters, "entities": entities})
 
-
-@app.route("/executive_briefing", methods=["GET"])
-def executive_briefing():
-    """
-    Phase 11C — Generative AI Insight Engine
-    Generates a Palantir-style executive briefing of the current platform state.
-    """
-    if not gemini_client:
-        return jsonify({"report": "Gemini AI is offline. Executive briefing cannot be generated."}), 503
-
-    try:
-        health = generate_system_health()
-        
-        system_prompt = (
-            "You are the NeuroPulse AI Chief Intelligence Officer (Bloomberg/Palantir style). "
-            "Write a highly professional, clinical, and strategic Executive Briefing based on the current system telemetry.\n\n"
-            f"TELEMETRY DATA:\n{str(health)}\n\n"
-            "Format your response in Markdown with the following sections:\n"
-            "1. EXECUTIVE SUMMARY\n"
-            "2. THREAT MATRIX (misinformation risks)\n"
-            "3. STRATEGIC RECOMMENDATIONS\n\n"
-            "Maintain a serious, military-grade enterprise tone. Do not use conversational filler."
-        )
-
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=system_prompt,
-            config={"temperature": 0.2, "max_output_tokens": 1024}
-        )
-        return jsonify({"report": response.text})
-    except Exception as e:
-        err = str(e).lower()
-        if any(k in err for k in ("429", "resource_exhausted", "quota", "rate limit")):
-            return jsonify({"report": "## Executive Briefing Temporarily Unavailable\n\n**Reason:** Gemini API quota exhausted.\n\n**Action:** The free-tier daily limit of 20 requests has been reached. Briefings will resume automatically after quota reset (typically within 24 hours).\n\n*All other NeuroPulse systems remain fully operational.*"}), 200
-        return jsonify({"error": f"Briefing generation failed: {str(e)}"}), 500
 
 @app.route("/copilot", methods=["POST"])
 def copilot_chat():

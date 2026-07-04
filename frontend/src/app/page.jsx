@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * NeuroPulse 2.0 — App.jsx
  * Futuristic AI Operations Center — Phase 9 Edition
@@ -10,36 +12,35 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 
 // Components
-import ParticleBackground   from './components/ParticleBackground';
-import StatusBar            from './components/StatusBar';
-import Sidebar              from './components/Sidebar';
-import AlertBanner          from './components/AlertBanner';
-import AnalyzeInput         from './components/AnalyzeInput';
-import ResultPanel          from './components/ResultPanel';
-import AnalyticsView        from './components/AnalyticsView';
-import HistoryView          from './components/HistoryView';
-import ModelsView           from './components/ModelsView';
-import RightPanel           from './components/RightPanel';
-import AICopilot            from './components/AICopilot';
-import CommandPalette       from './components/CommandPalette';
-import DemoMode             from './components/DemoMode';
-import ForecastPanel        from './components/ForecastPanel';
-import BenchmarkView        from './components/BenchmarkView';
-import SystemHealthView     from './components/SystemHealthView';
-import AIBrainTelemetry     from './components/AIBrainTelemetry';
-import AuthLayer            from './components/AuthLayer';
-import DemoScenarioEngine   from './components/DemoScenarioEngine';
-import PerformanceMonitor   from './components/PerformanceMonitor';
-import SemanticExplorer     from './components/SemanticExplorer';
-import SystemArchitecture   from './components/SystemArchitecture';
-import ConsensusMatrix      from './components/ConsensusMatrix';
-import ExecutiveBriefingView from './components/ExecutiveBriefingView';
-import FactCheckEvidence    from './FactCheckEvidence';
+import ParticleBackground   from '../components/ParticleBackground';
+import StatusBar            from '../components/StatusBar';
+import Sidebar              from '../components/Sidebar';
+import AlertBanner          from '../components/AlertBanner';
+import AnalyzeInput         from '../components/AnalyzeInput';
+import ResultPanel          from '../components/ResultPanel';
+import AnalyticsView        from '../components/AnalyticsView';
+import HistoryView          from '../components/HistoryView';
+import ModelsView           from '../components/ModelsView';
+import RightPanel           from '../components/RightPanel';
+import AICopilot            from '../components/AICopilot';
+import CommandPalette       from '../components/CommandPalette';
+import DemoMode             from '../components/DemoMode';
+import ForecastPanel        from '../components/ForecastPanel';
+import BenchmarkView        from '../components/BenchmarkView';
+import SystemHealthView     from '../components/SystemHealthView';
+import AIBrainTelemetry     from '../components/AIBrainTelemetry';
+import AuthLayer            from '../components/AuthLayer';
+import DemoScenarioEngine   from '../components/DemoScenarioEngine';
+import PerformanceMonitor   from '../components/PerformanceMonitor';
+import SemanticExplorer     from '../components/SemanticExplorer';
+import SystemArchitecture   from '../components/SystemArchitecture';
+import ConsensusMatrix      from '../components/ConsensusMatrix';
+import FactCheckEvidence    from '../FactCheckEvidence';
 
-import './App.css';
-import './index.css';
+import '../App.css';
+import '../index.css';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const API = process.env.NEXT_PUBLIC_VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 // ─── Utility ──────────────────────────────────────────────────────────
 const sentimentColor = l => ({ positive: '#10b981', negative: '#ef4444', neutral: '#f59e0b' }[l] || '#64748b');
@@ -53,6 +54,19 @@ export default function App() {
   const [loadingText,  setLoadingText]  = useState('System idle.');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isScenarioRunning, setIsScenarioRunning] = useState(false);
+
+  // Restore API keys from session cache on startup
+  useEffect(() => {
+    const savedRapidKey = sessionStorage.getItem('rapidapi_key');
+    const savedTwitterToken = sessionStorage.getItem('twitter_token');
+    if (savedRapidKey) {
+      axios.defaults.headers.common['x-rapidapi-key'] = savedRapidKey;
+      if (savedTwitterToken) {
+        axios.defaults.headers.common['x-twitter-token'] = savedTwitterToken;
+      }
+      setIsAuthenticated(true);
+    }
+  }, []);
 
   // ── App mode / view ─────────────────────────────────────────────────
   const [appMode,        setAppMode]       = useState('custom');
@@ -75,8 +89,6 @@ export default function App() {
   const mlCount = Object.values(loadedModels).filter(m => m.type === 'traditional').length;
   const dlCount = Object.values(loadedModels).filter(m => m.type === 'neural').length;
   const tfCount = Object.values(loadedModels).filter(m => m.type === 'transformer').length;
-
-
 
   // ── Fetch telemetry ──────────────────────────────────────────────────
   const fetchTelemetry = useCallback(async () => {
@@ -110,12 +122,18 @@ export default function App() {
 
   // ── Alert state ───────────────────────────────────────────────────────
   const checkAlert = () => {
-    if (!historyData || historyData.length < 3) return null;
-    const last = historyData.slice(-3);
-    if (last.filter(i => i.sentiment === 'negative').length >= 3)
-      return '⚠ Sustained negative sentiment spike detected across recent telemetry.';
-    if (last.filter(i => i.misinformation === 'High').length >= 2)
+    // 1. Check for sustained negative sentiment spike (at least 3 records required)
+    if (historyData && historyData.length >= 3) {
+      const last = historyData.slice(-3);
+      if (last.filter(i => i.sentiment === 'negative').length >= 3)
+        return '⚠ Sustained negative sentiment spike detected across recent telemetry.';
+    }
+    
+    // 2. Check if the current dashboard results show high misinformation risk
+    if (results && results.misinformation === 'High') {
       return '🚨 High misinformation risk trend detected. Recommend immediate manual audit.';
+    }
+    
     return null;
   };
   const activeAlert = checkAlert();
@@ -168,7 +186,17 @@ export default function App() {
 
   // ─── Render ────────────────────────────────────────────────────────────
   if (!isAuthenticated) {
-    return <AuthLayer onLogin={() => setIsAuthenticated(true)} />;
+    return <AuthLayer onLogin={(rapidKey, twToken) => {
+      if (rapidKey) {
+        sessionStorage.setItem('rapidapi_key', rapidKey);
+        axios.defaults.headers.common['x-rapidapi-key'] = rapidKey;
+      }
+      if (twToken) {
+        sessionStorage.setItem('twitter_token', twToken);
+        axios.defaults.headers.common['x-twitter-token'] = twToken;
+      }
+      setIsAuthenticated(true);
+    }} />;
   }
 
   return (
@@ -376,19 +404,14 @@ export default function App() {
               </motion.div>
             )}
 
-            {/* ── Executive Briefing View ── */}
-            {activeView === 'briefing' && (
-              <motion.div key="briefing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
-                <ExecutiveBriefingView />
-              </motion.div>
-            )}
+
 
             {/* ── Settings View ── */}
             {activeView === 'settings' && (
               <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 style={{ flex: 1, overflow: 'auto', padding: '1rem' }}
               >
-                <h2 style={{ color: '#e2e8f0', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 800 }}>◈ System Configuration</h2>
+                <h2 style={{ color: 'var(--text-1)', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 800 }}>◈ System Configuration</h2>
                 <p style={{ color: '#475569', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Toggle environment, reset states, manage preferences.</p>
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
@@ -428,11 +451,11 @@ export default function App() {
                     ['Models Active', `${Object.keys(loadedModels).length} / 10`],
                     ['Database',      'MongoDB Atlas'],
                     ['Fact-Checking', 'Gemini 2.5 Flash (Search Grounded)'],
-                    ['Frontend',      'React 19 + Vite 8 + Framer Motion'],
+                    ['Frontend',      'React 19 + Next.js 15'],
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.8rem' }}>
                       <span style={{ color: '#64748b' }}>{k}</span>
-                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{v}</span>
+                      <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{v}</span>
                     </div>
                   ))}
                 </div>

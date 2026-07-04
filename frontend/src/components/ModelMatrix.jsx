@@ -107,7 +107,7 @@ export default function ModelMatrix({ modelResults, consensus, loadedModels = {}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <td style={{ padding: '0.65rem 0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, color: '#e2e8f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, color: 'var(--text-1)' }}>
                       <Cpu size={12} color="#8b5cf6" />
                       {val.display_name || key}
                     </div>

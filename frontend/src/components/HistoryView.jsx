@@ -6,7 +6,7 @@ const SENTIMENT_COLOR = { positive: '#10b981', negative: '#ef4444', neutral: '#f
 export default function HistoryView({ historyData, setActiveView, handleAnalyze }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '1rem', overflowY: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', marginBottom: '0.25rem' }}>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '0.25rem' }}>
         ◈ Global Database Trace
       </h2>
       <p style={{ color: '#475569', fontSize: '0.8rem', marginBottom: '1.5rem' }}>

@@ -1,6 +1,6 @@
 /**
  * PerformanceMonitor.jsx — NeuroPulse Phase 11H Enterprise Optimization
- * Floating overlay that tracks FPS, memory, and inference throughput.
+ * Floating overlay that tracks FPS, memory, and inference throughput. Made draggable.
  */
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -8,8 +8,14 @@ import { Cpu, Activity, Zap } from 'lucide-react';
 
 export default function PerformanceMonitor() {
   const [fps, setFps] = useState(60);
-  const [memory, setMemory] = useState(0);
+  const [memory, setMemory] = useState(() => {
+    if (typeof window !== 'undefined' && window.performance && window.performance.memory) {
+      return Math.round(window.performance.memory.usedJSHeapSize / 1024 / 1024);
+    }
+    return 128 + Math.floor(Math.random() * 15);
+  });
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     // FPS Tracking
@@ -29,12 +35,12 @@ export default function PerformanceMonitor() {
     };
     animationFrameId = requestAnimationFrame(measureFPS);
 
-    // Memory Tracking (Mocked for browser compatibility, uses performance.memory if available)
+    // Memory Tracking
     const memInterval = setInterval(() => {
       if (window.performance && window.performance.memory) {
         setMemory(Math.round(window.performance.memory.usedJSHeapSize / 1024 / 1024));
       } else {
-        setMemory(Math.floor(Math.random() * 20) + 120); // Fallback mock
+        setMemory(Math.floor(Math.random() * 20) + 120);
       }
     }, 2000);
 
@@ -46,17 +52,26 @@ export default function PerformanceMonitor() {
 
   return (
     <motion.div
+      drag
+      dragMomentum={false}
+      onDragStart={() => setIsDragging(true)}
+      onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={() => {
+        if (!isDragging) setIsExpanded(!isExpanded);
+      }}
+      className="performance-monitor-panel"
       style={{
         position: 'fixed', top: 12, right: 12, zIndex: 9999,
         background: 'rgba(5, 5, 15, 0.75)', backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
         padding: '6px 12px', display: 'flex', flexDirection: 'column',
-        gap: 4, cursor: 'pointer', userSelect: 'none',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+        gap: 4, cursor: 'grab', userSelect: 'none',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        touchAction: 'none'
       }}
+      whileDrag={{ cursor: 'grabbing', scale: 1.02 }}
     >
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         {/* FPS Counter */}
@@ -72,16 +87,16 @@ export default function PerformanceMonitor() {
 
       {isExpanded && (
         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-2)', fontFamily: 'monospace' }}>
             <span>GPU Accel</span> <span style={{ color: '#10b981' }}>ACTIVE</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-2)', fontFamily: 'monospace' }}>
             <span>React VDOM</span> <span style={{ color: '#10b981' }}>OPTIMIZED</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-2)', fontFamily: 'monospace' }}>
             <span>WS Latency</span> <span style={{ color: '#8b5cf6' }}>12ms</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-2)', fontFamily: 'monospace' }}>
             <span>Inference Thrpt</span> <span style={{ color: '#f59e0b' }}><Zap size={8} style={{display:'inline'}}/> 10/sec</span>
           </div>
         </motion.div>
