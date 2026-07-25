@@ -14,7 +14,6 @@ Misinformation_Data.csv
 # Ignore huge generated models, or we can choose to upload them
 # For now, let's keep models un-ignored unless they exceed 50-100MB.
 # models/
-models/rf_model.pkl
 n o d e _ m o d u l e s /  
  d i s t /  
  f r o n t e n d / n o d e _ m o d u l e s /  
