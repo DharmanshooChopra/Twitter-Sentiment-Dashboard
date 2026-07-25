@@ -16,10 +16,6 @@ scikit-learn>=1.9.0
 pandas>=3.0.3
 numpy>=2.4.6
 
-# Deep Learning & Transformers (BiLSTM, CNN, DistilBERT, BERT, RoBERTa)
-torch>=2.0.0
-transformers>=4.30.0
-
 # LLM Integrations
 google-genai>=2.9.0
 

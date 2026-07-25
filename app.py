@@ -180,8 +180,8 @@ def _predict_hf_api(text, model_id):
 
 def _load_transformer_model(name, display_name, model_id):
     """Load a HuggingFace transformer model into the registry with low-memory safety."""
-    # On Cloud Free Tier (Render), use HF API for heavy BERT/RoBERTa to prevent Out-Of-Memory (>512MB RAM)
-    if os.getenv("RENDER") and name != "distilbert":
+    # On Render free tier use HF API for ALL transformers to prevent Out-Of-Memory (>512MB RAM)
+    if os.getenv("RENDER"):
         MODEL_REGISTRY[name] = {
             "type": "hf_api",
             "model_id": model_id,
@@ -219,6 +219,16 @@ def _load_transformer_model(name, display_name, model_id):
 
 def _load_neural_models():
     """Load LSTM and CNN Keras models into the registry."""
+    # Skip heavy PyTorch neural net loading on Render free tier (<512MB RAM)
+    if os.getenv("RENDER"):
+        for key, display in [("lstm", "BiLSTM"), ("cnn", "1D-CNN")]:
+            MODEL_REGISTRY[key] = {
+                "type": "hf_api",
+                "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+                "display_name": display,
+            }
+            print(f"  ✓ {display} registered (Memory-Safe HF Stream on Render)")
+        return
     try:
         from neural_nets import load_neural_models
         neural = load_neural_models()
@@ -269,7 +279,8 @@ print(f"\n📦 Registry ready — {len(MODEL_REGISTRY)} / 10 model(s) active.")
 print(f"   Categories: "
       f"{sum(1 for v in MODEL_REGISTRY.values() if v['type']=='traditional')} ML | "
       f"{sum(1 for v in MODEL_REGISTRY.values() if v['type']=='neural')} DL | "
-      f"{sum(1 for v in MODEL_REGISTRY.values() if v['type']=='transformer')} Transformer\n")
+      f"{sum(1 for v in MODEL_REGISTRY.values() if v['type']=='transformer')} Transformer | "
+      f"{sum(1 for v in MODEL_REGISTRY.values() if v['type']=='hf_api')} HF-Stream\n")
 
 # Keep legacy references for backward compat with batch endpoint
 vectorizer = MODEL_REGISTRY.get("svm", {}).get("vectorizer")
