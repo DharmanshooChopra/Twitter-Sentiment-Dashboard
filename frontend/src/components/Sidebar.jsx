@@ -8,13 +8,10 @@ import {
 const NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Command Center' },
   { id: 'analytics', icon: BarChart3,       label: 'Analytics' },
-  { id: 'forecast',  icon: TrendingUp,      label: 'Forecast' },
   { id: 'history',   icon: Clock,           label: 'History' },
   { id: 'models',    icon: Brain,           label: 'Model Registry' },
   { id: 'consensus', icon: Network,         label: 'Consensus Matrix' },
   { id: 'benchmark', icon: FlaskConical,    label: 'Research Analytics' },
-  { id: 'telemetry', icon: Activity,        label: 'AI Brain Telemetry' },
-  { id: 'semantic',  icon: BrainCircuit,    label: 'Semantic Explorer' },
   { id: 'architecture', icon: Component,    label: 'System Architecture' },
   { id: 'demo',      icon: PlaySquare,      label: 'Demo Mode' },
   { id: 'health',    icon: Database,        label: 'System Health' },

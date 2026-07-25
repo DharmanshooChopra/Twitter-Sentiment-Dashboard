@@ -35,6 +35,7 @@ import PerformanceMonitor   from '../components/PerformanceMonitor';
 import SemanticExplorer     from '../components/SemanticExplorer';
 import SystemArchitecture   from '../components/SystemArchitecture';
 import ConsensusMatrix      from '../components/ConsensusMatrix';
+import SettingsView         from '../components/SettingsView';
 import FactCheckEvidence    from '../FactCheckEvidence';
 
 import '../App.css';
@@ -71,6 +72,7 @@ export default function App() {
   // ── App mode / view ─────────────────────────────────────────────────
   const [appMode,        setAppMode]       = useState('custom');
   const [activeView,     setActiveView]    = useState('dashboard');
+  const [settingsTab,    setSettingsTab]   = useState('general');
   const [theme,          setTheme]         = useState('cyber-dark');
 
   // ── Phase 9: Copilot + Command Palette ─────────────────────────
@@ -355,13 +357,6 @@ export default function App() {
               </motion.div>
             )}
 
-            {/* ── Forecast View ── */}
-            {activeView === 'forecast' && (
-              <motion.div key="forecast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
-                <ForecastPanel />
-              </motion.div>
-            )}
-
             {/* ── Benchmark View ── */}
             {activeView === 'benchmark' && (
               <motion.div key="benchmark" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
@@ -373,20 +368,6 @@ export default function App() {
             {activeView === 'health' && (
               <motion.div key="health" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
                 <SystemHealthView />
-              </motion.div>
-            )}
-
-            {/* ── AI Brain Telemetry View ── */}
-            {activeView === 'telemetry' && (
-              <motion.div key="telemetry" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
-                <AIBrainTelemetry />
-              </motion.div>
-            )}
-
-            {/* ── Semantic Explorer View ── */}
-            {activeView === 'semantic' && (
-              <motion.div key="semantic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
-                <SemanticExplorer />
               </motion.div>
             )}
 
@@ -404,61 +385,23 @@ export default function App() {
               </motion.div>
             )}
 
-
-
-            {/* ── Settings View ── */}
-            {activeView === 'settings' && (
-              <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ flex: 1, overflow: 'auto', padding: '1rem' }}
-              >
-                <h2 style={{ color: 'var(--text-1)', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 800 }}>◈ System Configuration</h2>
-                <p style={{ color: '#475569', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Toggle environment, reset states, manage preferences.</p>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-                  {[
-                    { label: '◎ Cyber Dark', id: 'cyber-dark', active: theme === 'cyber-dark', bg: 'linear-gradient(135deg,#6366f1,#8b5cf6)' },
-                    { label: '☀ Light Mode', id: 'light-mode', active: theme === 'light-mode', bg: '#10b981' },
-                  ].map(t => (
-                    <motion.button
-                      key={t.id}
-                      onClick={() => setTheme(t.id)}
-                      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      style={{
-                        padding: '0.65rem 1.5rem', borderRadius: 9, cursor: 'pointer',
-                        border: t.active ? '2px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                        background: t.active ? t.bg : 'rgba(255,255,255,0.04)',
-                        color: 'white', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit',
-                      }}
-                    >{t.label}</motion.button>
-                  ))}
-                  <motion.button
-                    onClick={() => { setInputText(''); setResults(null); setError(null); setLoadingText('System reset.'); }}
-                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                    style={{
-                      padding: '0.65rem 1.5rem', borderRadius: 9, cursor: 'pointer',
-                      border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)',
-                      color: '#ef4444', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit',
-                    }}
-                  >⟳ Soft Reset</motion.button>
-                </div>
-
-                {/* System info */}
-                <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '1rem' }}>
-                  <div style={{ fontSize: '0.68rem', color: '#475569', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>Platform Info</div>
-                  {[
-                    ['Platform',      'NeuroPulse 2.0'],
-                    ['Backend',       'Flask + concurrent.futures'],
-                    ['Models Active', `${Object.keys(loadedModels).length} / 10`],
-                    ['Database',      'MongoDB Atlas'],
-                    ['Fact-Checking', 'Gemini 2.5 Flash (Search Grounded)'],
-                    ['Frontend',      'React 19 + Next.js 15'],
-                  ].map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.8rem' }}>
-                      <span style={{ color: '#64748b' }}>{k}</span>
-                      <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{v}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* ── Settings Suite View (General Config, Forecast, AI Telemetry & Semantic Engine) ── */}
+            {(activeView === 'settings' || activeView === 'forecast' || activeView === 'telemetry' || activeView === 'semantic') && (
+              <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, overflow: 'hidden' }}>
+                <SettingsView
+                  theme={theme}
+                  setTheme={setTheme}
+                  loadedModels={loadedModels}
+                  setInputText={setInputText}
+                  setResults={setResults}
+                  setError={setError}
+                  setLoadingText={setLoadingText}
+                  activeTab={['forecast', 'telemetry', 'semantic'].includes(activeView) ? activeView : settingsTab}
+                  setActiveTab={(tab) => {
+                    setSettingsTab(tab);
+                    if (activeView !== 'settings') setActiveView('settings');
+                  }}
+                />
               </motion.div>
             )}
 
