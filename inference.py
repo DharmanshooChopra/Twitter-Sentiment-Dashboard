@@ -76,6 +76,9 @@ def _run_single_model(name, entry, text):
             )
         elif model_type == "neural":
             pred = _predict_neural(text, entry["model"], entry["tokenizer"])
+        elif model_type == "hf_api":
+            from app import _predict_hf_api
+            pred = _predict_hf_api(text, entry["model_id"])
         else:
             return name, {
                 "display_name": entry.get("display_name", name),

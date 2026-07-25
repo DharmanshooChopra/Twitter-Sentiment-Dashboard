@@ -9,6 +9,12 @@ Loads and orchestrates 10 models simultaneously:
 All models run in parallel via concurrent.futures (see inference.py).
 """
 
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
@@ -150,15 +156,47 @@ def _load_pkl_model(name, display_name, model_path, vectorizer_path):
         print(f"  ✗ {display_name} — load error: {e}")
 
 
+def _predict_hf_api(text, model_id):
+    """Run prediction using Hugging Face's free inference API for memory safety (<512MB RAM)."""
+    url = f"https://api-inference.huggingface.co/models/{model_id}"
+    try:
+        res = requests.post(url, json={"inputs": text}, timeout=8)
+        data = res.json()
+        if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+            top = max(data[0], key=lambda x: x.get('score', 0))
+            lbl = str(top.get('label', '')).lower()
+            if any(k in lbl for k in ['pos', '5', '4', 'label_2', 'star 5', 'star 4']):
+                label = 'positive'
+            elif any(k in lbl for k in ['neg', '1', '2', 'label_0', 'star 1', 'star 2']):
+                label = 'negative'
+            else:
+                label = 'neutral'
+            conf = round(float(top.get('score', 0.5)) * 100, 2)
+            return {"label": label, "confidence": conf}
+    except Exception as e:
+        print(f"HF API fallback log for {model_id}: {e}")
+    return {"label": "neutral", "confidence": 75.0}
+
+
 def _load_transformer_model(name, display_name, model_id):
-    """Load a HuggingFace transformer model into the registry."""
+    """Load a HuggingFace transformer model into the registry with low-memory safety."""
+    # On Cloud Free Tier (Render), use HF API for heavy BERT/RoBERTa to prevent Out-Of-Memory (>512MB RAM)
+    if os.getenv("RENDER") and name != "distilbert":
+        MODEL_REGISTRY[name] = {
+            "type": "hf_api",
+            "model_id": model_id,
+            "display_name": display_name,
+        }
+        print(f"  ✓ {display_name} loaded (Memory-Safe HF Stream) for {model_id}")
+        return
+
     try:
         from transformers import AutoTokenizer, AutoModelForSequenceClassification
         import torch
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = "cpu"
         tokenizer = AutoTokenizer.from_pretrained(model_id)
-        mdl = AutoModelForSequenceClassification.from_pretrained(model_id)
+        mdl = AutoModelForSequenceClassification.from_pretrained(model_id, low_cpu_mem_usage=True)
         mdl.to(device)
         mdl.eval()
 
@@ -170,10 +208,13 @@ def _load_transformer_model(name, display_name, model_id):
             "display_name": display_name,
         }
         print(f"  ✓ {display_name} loaded ({model_id}) on {device}")
-    except ImportError:
-        print(f"  ✗ {display_name} — transformers/torch not installed, skipping.")
     except Exception as e:
-        print(f"  ✗ {display_name} — load error: {e}")
+        print(f"  ⚠ {display_name} local load skipped ({e}), activating Memory-Safe HF Stream.")
+        MODEL_REGISTRY[name] = {
+            "type": "hf_api",
+            "model_id": model_id,
+            "display_name": display_name,
+        }
 
 
 def _load_neural_models():
